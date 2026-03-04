@@ -88,7 +88,42 @@
 - [79 Word Search](mainMaterial.md#79-word-search)
 - [131 Palindrome Partitioning](mainMaterial.md#131-palindrome-partitioning)
 - [17 Letter Combinations of Phone Number](mainMaterial.md#17-letter-combinations-of-phone-number)
+# 🧠 回溯模板总结
 
+```python
+def backtrack(路径, 选择列表, ...):
+    # 终止条件
+    if 满足结束条件:
+        result.append(路径.copy())  # ⚠️ 必须copy
+        return
+    
+    # 遍历选择列表
+    for 选择 in 选择列表:
+        # 剪枝
+        if 不合法:
+            continue 或 break
+        
+        # 做选择
+        路径.append(选择)
+        
+        # 递归
+        backtrack(路径, 新的选择列表, ...)
+        
+        # 撤销选择
+        路径.pop()
+```
+
+## 🎯 Key Points
+
+```
+✅ 回溯三步：选择 → 递归 → 撤销
+✅ 必须复制path：result.append(path.copy())
+✅ 允许重复：递归传 i
+✅ 防止重复组合：从 start 开始遍历
+✅ 剪枝优化：排序后提前break
+```
+
+---
 ## 11. Graphs
 - [200 Number of Islands](mainMaterial.md#200-number-of-islands)
 - [695 Max Area of Island](mainMaterial.md#695-max-area-of-island)
