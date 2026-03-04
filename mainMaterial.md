@@ -1,4 +1,5 @@
 ## 1 Two Sum
+
 ## 49 Group Anagrams
 ## 217 Contains Duplicate
 ## 347 Top K Frequent Elements
@@ -83,6 +84,48 @@
 ## 695 Max Area of Island
 ## 133 Clone Graph
 ## 417 Pacific Atlantic Water Flow
+## 🔹 Pattern
+例如：DFS / BFS / 双指针 / 动态规划 / 贪心
+
+## 💡 Core Idea
+简要描述解题思路，突出关键逻辑，例如：
+- 从边界开始 DFS，反向扩散
+- 遇到高度更高或相等才继续
+- 用两个集合记录能流向太平洋和大西洋的格子
+- 最后取交集得到结果
+
+## 🧩 Pseudo Code
+
+```text
+function pacificAtlantic(heights):
+    initialize m, n
+    initialize pacific set
+    initialize atlantic set
+    directions = [(0,1),(1,0),(0,-1),(-1,0)]
+
+    function dfs(x, y, visited):
+        if (x, y) in visited:
+            return
+        add (x, y) to visited
+        for each (dx, dy) in directions:
+            nx = x + dx
+            ny = y + dy
+            if nx, ny in bounds and heights[nx][ny] >= heights[x][y]:
+                dfs(nx, ny, visited)
+
+    for i in rows:
+        dfs(i, 0, pacific)
+        dfs(i, n-1, atlantic)
+    for j in columns:
+        dfs(0, j, pacific)
+        dfs(m-1, j, atlantic)
+
+    result = []
+    for each cell in pacific:
+        if cell in atlantic:
+            add cell to result
+
+    return result
 ## 130 Surrounded Regions
 ## 994 Rotting Oranges
 ## 207 Course Schedule
