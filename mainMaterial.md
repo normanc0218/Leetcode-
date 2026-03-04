@@ -4,6 +4,166 @@
 ## 217 Contains Duplicate
 ## 347 Top K Frequent Elements
 ## 238 Product of Array Except Self
+
+---
+
+## 🔹 Pattern
+**前缀积 × 后缀积**
+
+---
+
+## 💡 Core Idea
+
+**关键洞察：答案 = 左边所有数的乘积 × 右边所有数的乘积**
+
+- **不能用除法**（题目要求）
+- **核心思想**：
+  - `result[i] = (左边所有数的乘积) × (右边所有数的乘积)`
+  - 前缀积（prefix）：`i` 左边所有数的乘积
+  - 后缀积（suffix）：`i` 右边所有数的乘积
+
+**优化**：用结果数组存储中间结果，空间 O(1)（不算输出数组）
+
+**两次遍历**：
+1. 从右往左：计算后缀积，存入 `res`
+2. 从左往右：计算前缀积，乘到 `res` 上
+
+---
+
+## 🧩 Pseudo Code
+
+```text
+function productExceptSelf(nums):
+    n = len(nums)
+    res = [1] × n
+    
+    // 第一次遍历：从右往左，计算后缀积
+    suffix = 1
+    for i from n-1 to 0:
+        res[i] = suffix          // 先存入当前后缀积
+        suffix *= nums[i]        // 更新后缀积
+    
+    // 第二次遍历：从左往右，计算前缀积并相乘
+    prefix = 1
+    for i from 0 to n-1:
+        res[i] *= prefix         // 乘上前缀积
+        prefix *= nums[i]        // 更新前缀积
+    
+    return res
+```
+
+---
+
+## ✅ Complete Code
+
+```python
+class Solution:
+    def productExceptSelf(self, nums: List[int]) -> List[int]:
+        n = len(nums)
+        res = [1] * n
+        
+        # 第一次遍历：从右往左，计算后缀积
+        suff = 1
+        for i in range(n - 1, -1, -1):
+            res[i] *= suff      # res[i] = 右边所有数的乘积
+            suff *= nums[i]     # 更新后缀积
+        
+        # 第二次遍历：从左往右，计算前缀积
+        pref = 1
+        for i in range(n):
+            res[i] *= pref      # res[i] *= 左边所有数的乘积
+            pref *= nums[i]     # 更新前缀积
+        
+        return res
+```
+---
+
+## 🔑 核心原理
+
+### **为什么要两次遍历？**
+
+```
+对于 nums[i]，答案是:
+result[i] = (左边的乘积) × (右边的乘积)
+
+例如: nums = [1, 2, 3, 4]
+i=2 (数字3):
+  左边: 1 × 2 = 2
+  右边: 4 = 4
+  结果: 2 × 4 = 8
+
+第一次遍历: 存储右边的乘积 → res = [24, 12, 4, 1]
+第二次遍历: 乘上左边的乘积 → res = [24, 12, 8, 6]
+```
+
+---
+
+### **为什么从右往左计算后缀积？**
+
+```
+从右往左:
+i=3: 右边没有数 → 1
+i=2: 右边是 4 → 4
+i=1: 右边是 3×4 → 12
+i=0: 右边是 2×3×4 → 24
+
+从左往右也可以，但需要额外变量或逻辑
+从右往左更自然，直接用 res 存储
+```
+
+---
+
+## 📊 复杂度分析
+
+**时间复杂度**: O(n)
+- 两次遍历，每次 O(n)
+
+**空间复杂度**: O(1)
+- 不算输出数组，只用了 `pref` 和 `suff` 两个变量
+- （如果算输出数组则是 O(n)）
+
+---
+
+## 💡 另一种理解方式
+
+```
+数组:     [1,    2,    3,    4]
+         
+左边积:   [1,    1,   1×2, 1×2×3]
+右边积:  [2×3×4, 3×4,  4,    1]
+         
+结果:    [1×24, 1×12, 2×4, 6×1]
+        = [24,   12,   8,    6]
+
+关键: 左边积 × 右边积 = 除了自己以外所有数的积
+```
+
+---
+
+## 🧠 快速记忆
+
+```
+右往左存后缀积，
+左往右乘前缀积，
+两次遍历巧结合，
+O(1) 空间真神奇！
+```
+
+---
+
+## 🎯 Key Points
+
+```
+✅ 答案 = 左边积 × 右边积
+✅ 第一次遍历：从右往左存后缀积
+✅ 第二次遍历：从左往右乘前缀积
+✅ 用 res 数组存储中间结果，空间 O(1)
+✅ 时间 O(n)，两次遍历
+```
+
+---
+
+**提示**: 这题的精髓在于用结果数组存储中间结果，实现 O(1) 额外空间！💪
 ## 36 Valid Sudoku
 ## 128 Longest Consecutive Sequence
 
@@ -140,9 +300,344 @@ O(n) 轻松搞定！
 ## 271 Encode and Decode Strings
 
 ## 125 Valid Palindrome
+# 📘 125. Valid Palindrome
+
+---
+
+## 🔹 Pattern
+**双指针 (Two Pointers)**
+
+---
+
+## 💡 Core Idea
+
+**关键洞察：双指针从两端向中间靠拢，跳过非字母数字字符**
+
+- **双指针**：`l` 从左，`r` 从右，向中间移动
+- **过滤规则**：只考虑字母和数字，忽略空格、标点
+- **大小写不敏感**：统一转换为小写比较
+- **核心逻辑**：
+  1. 跳过左边的非字母数字
+  2. 跳过右边的非字母数字
+  3. 比较两边字符（转小写）
+  4. 不匹配返回 `False`，匹配则继续
+
+**为什么用双指针？** 回文串的特点是对称，从两端比较最直观高效。
+
+---
+
+## 🧩 Pseudo Code
+
+```text
+function isPalindrome(s):
+    l = 0
+    r = len(s) - 1
+    
+    while l < r:
+        // 跳过左边的非字母数字
+        if s[l] not alphanumeric:
+            l += 1
+        
+        // 跳过右边的非字母数字
+        else if s[r] not alphanumeric:
+            r -= 1
+        
+        // 比较字符（转小写）
+        else if s[l].lower() == s[r].lower():
+            l += 1
+            r -= 1
+        
+        // 不匹配
+        else:
+            return False
+    
+    return True
+```
+
+---
+
+## ✅ Complete Code
+
+```python
+class Solution:
+    def isPalindrome(self, s: str) -> bool:
+        l = 0
+        r = len(s) - 1
+        
+        while l < r:
+            # 跳过左边的非字母数字
+            if not s[l].isalnum():
+                l += 1
+            
+            # 跳过右边的非字母数字
+            elif not s[r].isalnum():
+                r -= 1
+            
+            # 比较字符（转小写）
+            elif s[l].lower() == s[r].lower():
+                l += 1
+                r -= 1
+            
+            # 不匹配
+            else:
+                return False
+        
+        return True
+```
+## 📊 三种解法对比
+
+### **方法1：双指针 + elif（推荐）**
+```python
+def isPalindrome(self, s: str) -> bool:
+    l, r = 0, len(s) - 1
+    while l < r:
+        if not s[l].isalnum():
+            l += 1
+        elif not s[r].isalnum():
+            r -= 1
+        elif s[l].lower() == s[r].lower():
+            l += 1
+            r -= 1
+        else:
+            return False
+    return True
+```
+- **时间**: O(n)
+- **空间**: O(1)
+- **优点**: 清晰、高效
+
+---
+
+### **方法2：双指针 + while 跳过**
+```python
+def isPalindrome(self, s: str) -> bool:
+    l, r = 0, len(s) - 1
+    while l < r:
+        # 持续跳过左边
+        while l < r and not s[l].isalnum():
+            l += 1
+        # 持续跳过右边
+        while l < r and not s[r].isalnum():
+            r -= 1
+        
+        if s[l].lower() != s[r].lower():
+            return False
+        l += 1
+        r -= 1
+    return True
+```
+- **时间**: O(n)
+- **空间**: O(1)
+- **优点**: 跳过逻辑更明确
+
+---
+
+### **方法3：预处理（最简洁）**
+```python
+def isPalindrome(self, s: str) -> bool:
+    # 过滤并转小写
+    filtered = ''.join(c.lower() for c in s if c.isalnum())
+    # 比较反转
+    return filtered == filtered[::-1]
+```
+- **时间**: O(n)
+- **空间**: O(n)
+- **优点**: 代码最短
+
+
+## 🎯 复杂度分析
+
+**时间复杂度**: O(n)
+- 每个字符最多访问一次
+- `isalnum()` 和 `lower()` 都是 O(1)
+
+**空间复杂度**: O(1)
+- 只用了两个指针
+- 预处理法是 O(n)
+
+
+
+---
+
+## 🎯 Key Points
+
+```
+✅ 双指针从两端向中间移动
+✅ 用 elif 确保逻辑互斥
+✅ isalnum() 判断字母数字
+✅ lower() 转小写比较
+✅ 跳过非字母数字后继续循环
+```
+
+---
+
+## 🧠 快速记忆
+
+```
+双指针两端走，
+非字母数字跳，
+转小写再比较，
+不等就False报！
+```
+
+---
+
+## 📝 相关题目
+
+### **680. Valid Palindrome II**
+```python
+# 允许删除一个字符后判断回文
+# 需要递归或双指针 + 辅助函数
+```
+
+### **5. Longest Palindromic Substring**
+```python
+# 找最长回文子串
+# 中心扩展法或动态规划
+```
+
+### **9. Palindrome Number**
+```python
+# 判断数字是否回文
+# 可以转字符串用双指针
+```
+
+
+**提示**: 双指针是最基础的模式之一，这题是入门必刷题！💪
 ## 167 Two Sum II
 ## 15 3Sum
 ## 11 Container With Most Water
+
+---
+
+## 🔹 Pattern
+**双指针 (Two Pointers) + 贪心**
+
+---
+
+## 💡 Core Idea
+
+**关键洞察：移动较短的边，才有可能获得更大面积**
+
+- **面积公式**：`area = min(height[l], height[r]) × (r - l)`
+- **核心策略**：
+  - 从两端开始，宽度最大
+  - 每次移动较短的那一边
+  - 为什么？因为面积由短板决定，移动长板只会让宽度变小，面积不可能更大
+
+**贪心思想**：
+- 宽度在递减（`r - l` 越来越小）
+- 要获得更大面积，必须寻找更高的边
+- 移动短边才有机会找到更高的边
+- 移动长边只会让情况更糟（宽度减小，高度不会超过当前短边）
+
+---
+
+## 🧩 Pseudo Code
+
+```text
+function maxArea(heights):
+    l = 0
+    r = len(heights) - 1
+    maxArea = 0
+    
+    while l < r:
+        // 计算当前面积（短板 × 宽度）
+        height = min(heights[l], heights[r])
+        area = height × (r - l)
+        maxArea = max(maxArea, area)
+        
+        // 移动较短的边
+        if heights[l] < heights[r]:
+            l += 1  // 左边更短，移动左指针
+        else:
+            r -= 1  // 右边更短或相等，移动右指针
+    
+    return maxArea
+```
+
+---
+
+## ✅ Complete Code
+
+```python
+class Solution:
+    def maxArea(self, heights: List[int]) -> int:
+        l = 0
+        r = len(heights) - 1
+        max_res = 0
+        
+        while l < r:
+            # 计算当前面积
+            h = min(heights[l], heights[r])
+            max_res = max(max_res, h * (r - l))
+            
+            # 移动较短的边
+            if heights[l] < heights[r]:
+                l += 1
+            else:
+                r -= 1
+        
+        return max_res
+```
+
+## 🔑 核心原理
+
+### **为什么移动短边？**
+
+```
+当前状态: l=0(高度1), r=8(高度7)
+面积 = min(1, 7) × 8 = 8
+
+选项1: 移动长边 r (高度7)
+  新状态: l=0(1), r=7(3)
+  面积 = min(1, 3) × 7 = 7 ← 更小了！
+  原因: 宽度减小，高度还是1（短板）
+
+选项2: 移动短边 l (高度1)
+  新状态: l=1(8), r=8(7)
+  面积 = min(8, 7) × 7 = 49 ← 可能更大！
+  原因: 宽度减小，但找到了更高的边
+
+结论: 移动短边才有可能获得更大面积
+```
+
+---
+
+## 📊 时间复杂度分析
+
+**时间复杂度**: O(n)
+- 两个指针各遍历一次
+- 每次循环 O(1) 操作
+
+**空间复杂度**: O(1)
+- 只用了常数个变量
+
+---
+
+## 🧠 快速记忆
+
+```
+双指针两端放，
+短板决定面积量，
+移动短边找更高，
+贪心策略最优解！
+```
+
+---
+
+## 🎯 Key Points
+
+```
+✅ 面积 = min(height[l], height[r]) × (r - l)
+✅ 移动较短的边
+✅ 贪心：只有找到更高的边才可能增大面积
+✅ 时间 O(n)，空间 O(1)
+```
+
+---
+
+**提示**: 这题的精髓在于理解"为什么移动短边"，这是贪心思想的经典应用！💪
 ## 42 Trapping Rain Water
 
 ## 121 Best Time to Buy and Sell Stock

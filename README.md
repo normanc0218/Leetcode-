@@ -42,7 +42,35 @@ Personal algorithm knowledge base.
 - [15 3Sum](mainMaterial.md#15-3sum)
 - [11 Container With Most Water](mainMaterial.md#11-container-with-most-water)
 - [42 Trapping Rain Water](mainMaterial.md#42-trapping-rain-water)
+---
 
+## 🧠 双指针模板
+
+```python
+def two_pointers(s):
+    l, r = 0, len(s) - 1
+    
+    while l < r:
+        # 左指针处理
+        if 左边不满足条件:
+            l += 1
+            continue  # 或用 elif
+        
+        # 右指针处理
+        if 右边不满足条件:
+            r -= 1
+            continue  # 或用 elif
+        
+        # 双指针都满足条件，进行处理
+        if 满足某个条件:
+            # 处理逻辑
+            l += 1
+            r -= 1
+        else:
+            return False
+    
+    return True
+```
 ## 03. Sliding Window
 - [121 Best Time to Buy and Sell Stock](mainMaterial.md#121-best-time-to-buy-and-sell-stock)
 - [3 Longest Substring Without Repeating Characters](mainMaterial.md#3-longest-substring-without-repeating-characters)
@@ -67,7 +95,278 @@ Personal algorithm knowledge base.
 - [33 Search in Rotated Sorted Array](mainMaterial.md#33-search-in-rotated-sorted-array)
 - [981 Time Based Key Value Store](mainMaterial.md#981-time-based-key-value-store)
 - [4 Median of Two Sorted Arrays](mainMaterial.md#4-median-of-two-sorted-arrays)
+# 📘 二分查找 (Binary Search) - 三种区间写法
 
+---
+
+## 🎯 核心原则
+
+**关键：保持区间定义的一致性**
+
+- **区间定义决定一切**：初始化、循环条件、更新方式
+- **不变式**：每次循环后，答案必在搜索区间内
+- **三种写法本质相同**，只是区间定义不同
+
+---
+
+## 1️⃣ 左闭右闭 [left, right] - 最常用 ⭐
+
+### 💡 区间定义
+- `[left, right]` - 两端都包含
+- 搜索区间内的每个元素都可能是答案
+
+### ✅ 模板代码
+
+```python
+def binary_search(nums, target):
+    left, right = 0, len(nums) - 1  # ✅ right = len(nums) - 1
+    
+    while left <= right:  # ✅ left == right 时区间 [left, left] 有效
+        mid = left + (right - left) // 2
+        
+        if nums[mid] == target:
+            return mid
+        elif nums[mid] < target:
+            left = mid + 1  # ✅ mid 已检查，排除
+        else:
+            right = mid - 1  # ✅ mid 已检查，排除
+    
+    return -1  # 未找到
+```
+
+### 🔑 关键点
+```
+✅ right = len(nums) - 1  (包含最后一个元素)
+✅ while left <= right     (相等时还有一个元素)
+✅ left = mid + 1          (mid 已检查，排除)
+✅ right = mid - 1         (mid 已检查，排除)
+```
+
+---
+
+## 2️⃣ 左闭右开 [left, right)
+
+### 💡 区间定义
+- `[left, right)` - 左包含，右不包含
+- `right` 指向的元素不在搜索区间内
+
+### ✅ 模板代码
+
+```python
+def binary_search(nums, target):
+    left, right = 0, len(nums)  # ✅ right = len(nums) (不包含)
+    
+    while left < right:  # ✅ left == right 时区间 [left, left) 无效
+        mid = left + (right - left) // 2
+        
+        if nums[mid] == target:
+            return mid
+        elif nums[mid] < target:
+            left = mid + 1  # ✅ mid 已检查，排除
+        else:
+            right = mid  # ✅ mid 已检查，但 right 本就不包含，所以 = mid
+    
+    return -1  # 未找到
+```
+
+### 🔑 关键点
+```
+✅ right = len(nums)       (不包含最后位置)
+✅ while left < right      (相等时区间为空)
+✅ left = mid + 1          (mid 已检查，排除)
+✅ right = mid             (right 不包含，所以 = mid)
+```
+
+---
+
+## 3️⃣ 左开右开 (left, right)
+
+### 💡 区间定义
+- `(left, right)` - 两端都不包含
+- 两个边界都不在搜索区间内
+
+### ✅ 模板代码
+
+```python
+def binary_search(nums, target):
+    left, right = -1, len(nums)  # ✅ 两端都不包含
+    
+    while left + 1 < right:  # ✅ 区间内至少有一个元素
+        mid = left + (right - left) // 2
+        
+        if nums[mid] == target:
+            return mid
+        elif nums[mid] < target:
+            left = mid  # ✅ left 不包含，所以 = mid
+        else:
+            right = mid  # ✅ right 不包含，所以 = mid
+    
+    return -1  # 未找到
+```
+
+### 🔑 关键点
+```
+✅ left = -1, right = len(nums)  (两端都在外面)
+✅ while left + 1 < right         (至少间隔2，中间有元素)
+✅ left = mid                     (left 不包含，所以 = mid)
+✅ right = mid                    (right 不包含，所以 = mid)
+```
+
+---
+
+## 📊 三种写法对比
+
+| 特性 | 左闭右闭 [l, r] | 左闭右开 [l, r) | 左开右开 (l, r) |
+|------|----------------|----------------|----------------|
+| **初始 right** | `len(nums) - 1` | `len(nums)` | `len(nums)` |
+| **初始 left** | `0` | `0` | `-1` |
+| **循环条件** | `left <= right` | `left < right` | `left + 1 < right` |
+| **更新 left** | `mid + 1` | `mid + 1` | `mid` |
+| **更新 right** | `mid - 1` | `mid` | `mid` |
+| **推荐度** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ |
+
+
+## 🔍 寻找左边界（第一个 >= target）
+
+### 左闭右闭写法
+```python
+def lower_bound(nums, target):
+    left, right = 0, len(nums) - 1
+    result = len(nums)  # 默认返回 len (表示都小于 target)
+    
+    while left <= right:
+        mid = left + (right - left) // 2
+        
+        if nums[mid] >= target:
+            result = mid
+            right = mid - 1  # 继续向左找
+        else:
+            left = mid + 1
+    
+    return result
+```
+
+### 左闭右开写法
+```python
+def lower_bound(nums, target):
+    left, right = 0, len(nums)
+    
+    while left < right:
+        mid = left + (right - left) // 2
+        
+        if nums[mid] >= target:
+            right = mid  # 继续向左找
+        else:
+            left = mid + 1
+    
+    return left  # 退出时 left == right
+```
+
+---
+
+## 🔍 寻找右边界（最后一个 <= target）
+
+### 左闭右闭写法
+```python
+def upper_bound(nums, target):
+    left, right = 0, len(nums) - 1
+    result = -1  # 默认返回 -1 (表示都大于 target)
+    
+    while left <= right:
+        mid = left + (right - left) // 2
+        
+        if nums[mid] <= target:
+            result = mid
+            left = mid + 1  # 继续向右找
+        else:
+            right = mid - 1
+    
+    return result
+```
+
+### 左闭右开写法
+```python
+def upper_bound(nums, target):
+    left, right = 0, len(nums)
+    
+    while left < right:
+        mid = left + (right - left) // 2
+        
+        if nums[mid] <= target:
+            left = mid + 1  # 继续向右找
+        else:
+            right = mid
+    
+    return left - 1  # 返回 left - 1
+```
+
+---
+
+## 🧠 如何选择？
+
+### ⭐ **推荐：左闭右闭 [left, right]**
+```
+优点:
+✅ 最直观：[0, len-1] 包含所有元素
+✅ 对称美：left = mid + 1, right = mid - 1
+✅ 最常用：大多数教材和题目使用
+
+适用: 99% 的情况
+```
+
+### **左闭右开 [left, right)**
+```
+优点:
+✅ Python 风格：range(0, len) 的习惯
+✅ 不需要 -1：right = len(nums)
+✅ 找边界时更简洁
+
+适用: 寻找边界的问题
+```
+
+### **左开右开 (left, right)**
+```
+优点:
+✅ 避免溢出：不直接访问边界
+✅ 理论优美：开区间一致性
+
+缺点:
+❌ 不直观：left = -1 很奇怪
+❌ 少用：不是主流写法
+
+适用: 特殊情况（如需要保护边界）
+```
+
+
+## 📌 防溢出技巧
+
+```python
+# ❌ 可能溢出
+mid = (left + right) // 2
+
+# ✅ 防止溢出
+mid = left + (right - left) // 2
+
+# ✅ 位运算（最快，但可读性差）
+mid = (left + right) >> 1
+```
+
+---
+
+## 🎯 总结
+
+| 场景 | 推荐写法 |
+|------|---------|
+| **基础二分查找** | 左闭右闭 ⭐⭐⭐⭐⭐ |
+| **寻找边界** | 左闭右开 ⭐⭐⭐⭐ |
+| **Python 习惯** | 左闭右开 ⭐⭐⭐⭐ |
+| **特殊保护边界** | 左开右开 ⭐⭐⭐ |
+
+**建议**：掌握**左闭右闭**作为主力，理解**左闭右开**用于边界问题，了解**左开右开**扩展知识。
+
+---
+
+**提示**: 选一种写法深入理解，面试时保持一致，不要混用！💪
 ## 06. Linked List
 - [206 Reverse Linked List](mainMaterial.md#206-reverse-linked-list)
 - [21 Merge Two Sorted Lists](mainMaterial.md#21-merge-two-sorted-lists)
