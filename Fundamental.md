@@ -3,14 +3,16 @@
 Personal ML knowledge base.
 
 ## 📂 Categories
-
-- [K-means](#01-K-Means-算法复习笔记-&-代码练习)
-- [PCA](#02-pca主成分分析复习笔记--代码练习)
+- [Numpy](#numpy技巧)
+- [激活函数和损失函数](#激活函数--损失函数-速查表)
+- [KNN](#knnk-nearest-neighbors复习笔记)
+- [K-means](#k-means-算法复习笔记--代码练习)
+- [PCA](#pca主成分分析复习笔记--代码练习)
 - [Linear Regression](#linear-regression-复习笔记)
-
-
-
-
+- [logistic Regression](#logistic-regression-复习笔记)
+- [Support Vector Machine](#svm支持向量机复习笔记)
+- [Lagrangian SVM derivation](#拉格朗日乘子法--svm-推导笔记)
+- [Random Forest & XGBoost](#决策树--random-forest--xgboost-复习笔记)
 
 
 
@@ -85,8 +87,348 @@ B: (2, 1, 4)
 
 > **右对齐，逢 1 扩，不同非 1 就报错。**
 ---
+# 激活函数 & 损失函数 速查表
 
-# 01 K-Means 算法复习笔记 & 代码练习
+---
+
+## 1. 输出层激活函数
+
+这些函数加在模型最后一层，把原始输出变成有意义的值。
+
+### Sigmoid
+
+```
+sigmoid(z) = 1 / (1 + e^(-z))
+
+输入：任意实数
+输出：(0, 1) 之间的一个概率
+用途：二分类
+```
+
+### Softmax
+
+```
+softmax(zi) = e^zi / Σ(e^zj)
+
+输入：k 个实数
+输出：k 个概率，加起来 = 1
+用途：多分类
+```
+---
+
+## 2. 损失函数
+
+### MSE（Mean Squared Error）
+
+```
+L = (1/n) × Σ(yi - ŷi)²
+
+配合：无激活（回归）
+任务：回归
+直觉：预测值和真实值差多远
+```
+
+### MAE（Mean Absolute Error）
+
+```
+L = (1/n) × Σ|yi - ŷi|
+
+配合：无激活（回归）
+任务：回归（对异常值更鲁棒）
+直觉：和 MSE 类似，但不放大大误差
+```
+
+### BCE（Binary Cross Entropy）
+
+```
+L = -(1/n) × Σ[yi × log(ŷi) + (1-yi) × log(1-ŷi)]
+
+配合：sigmoid
+任务：二分类
+直觉：预测概率和真实标签(0/1)差多远
+```
+
+### CE（Categorical Cross Entropy）
+
+```
+L = -(1/n) × Σ Σ yij × log(ŷij)
+  = -(1/n) × Σ log(正确类别的预测概率)
+
+配合：softmax
+任务：多分类
+直觉：正确类别的概率越高，损失越小
+```
+
+### Hinge Loss
+
+```
+L = (1/n) × Σ max(0, 1 - yi × ŷi)
+
+配合：无激活（输出原始分数）
+任务：二分类（SVM 用的）
+直觉：只要分对且有足够间隔就不惩罚
+```
+
+---
+
+## 3. 经典搭配（必背）
+
+```
+任务         输出层激活     损失函数         例子
+─────────   ──────────    ──────────      ──────
+回归         无            MSE / MAE       预测房价
+二分类       sigmoid       BCE             是否垃圾邮件
+多分类       softmax       CE              识别猫/狗/鸟
+SVM 分类     无            Hinge Loss      文本分类
+```
+
+这是固定搭配，不要混着用：
+- sigmoid + MSE → 非凸，优化困难 ❌
+    Loss = (y - sigmoid(wx+b))²
+
+    sigmoid 是 S 形曲线，套上平方之后
+    损失函数变得弯弯曲曲，出现多个坑
+
+    梯度下降可能掉进一个小坑（局部最优）出不来
+- softmax + BCE → 维度不对 ❌
+- 回归 + CE → 没有意义 ❌
+
+---
+
+## 4. 隐藏层激活函数
+
+这些加在中间层，给模型引入非线性能力。和输出层激活函数是不同的东西。
+
+### ReLU（最常用）
+
+```
+ReLU(z) = max(0, z)
+
+z > 0 → 输出 z
+z ≤ 0 → 输出 0
+
+优点：计算快，缓解梯度消失
+缺点：负数区域梯度为 0（"死神经元"）
+```
+
+### Leaky ReLU
+
+```
+LeakyReLU(z) = z      if z > 0
+               0.01z   if z ≤ 0
+
+解决 ReLU 死神经元问题，负数区域给一个小斜率
+```
+
+### Tanh
+
+```
+tanh(z) = (e^z - e^(-z)) / (e^z + e^(-z))
+
+输出：(-1, 1)
+类似 sigmoid 但中心在 0，收敛更快
+```
+
+### Sigmoid（作为隐藏层）
+
+```
+现在很少用在隐藏层了
+缺点：梯度消失（两端梯度接近 0）、输出不以 0 为中心
+```
+
+---
+
+## 5. 隐藏层 vs 输出层 总结
+
+```
+隐藏层激活（给模型非线性能力）：
+  首选 ReLU → 大部分情况
+  Leaky ReLU → 担心死神经元时
+  Tanh → RNN 中常用
+
+输出层激活（把输出变成有意义的值）：
+  无 → 回归
+  sigmoid → 二分类
+  softmax → 多分类
+```
+# KNN（K-Nearest Neighbors）复习笔记
+
+---
+
+## 1. 核心概念速记
+
+| 项目 | 内容 |
+|------|------|
+| **类型** | 有监督（分类 & 回归都能做） |
+| **核心思想** | 看最近的 k 个邻居，少数服从多数 |
+| **训练过程** | 没有！直接存储所有数据（懒学习） |
+| **预测过程** | 算距离 → 找 k 个最近的 → 投票/取均值 |
+| **时间复杂度** | 训练 O(1)，预测 O(n×d) |
+
+## 2. 算法流程
+
+```
+1. 存储所有训练数据（没有训练过程）
+2. 来了新数据 x：
+   a. 算 x 到所有训练点的距离
+   b. 找距离最近的 k 个点
+   c. 分类：k 个邻居投票，多数类胜出
+      回归：k 个邻居的 y 取均值
+```
+
+## 3. 距离度量
+
+```
+欧氏距离（最常用）：sqrt(Σ(xi - yi)²)
+曼哈顿距离：        Σ|xi - yi|
+闵可夫斯基距离：    (Σ|xi - yi|^p)^(1/p)
+  p=1 → 曼哈顿
+  p=2 → 欧氏
+```
+
+## 4. K 的选择
+
+```
+K 太小（如 K=1）→ 对噪声敏感，容易过拟合
+K 太大（如 K=n）→ 所有点都投票，等于预测多数类，欠拟合
+
+选择方法：交叉验证，通常选奇数（避免平票）
+经验值：sqrt(n) 附近
+```
+
+## 5. 关键注意事项
+
+```
+1. 必须标准化：量纲不同的特征会主导距离
+2. 维度灾难：高维空间中所有点的距离趋于相同，KNN 失效
+3. 数据量大时预测很慢：每次预测都要算 n 个距离
+4. 不平衡数据：多数类邻居多，可用加权投票（距离越近权重越大）
+```
+
+## 6. 手搓代码（numpy）
+
+### 分类
+
+```python
+import numpy as np
+from collections import Counter
+
+def knn_classify(X_train, y_train, x_new, k):
+    """
+    X_train: (n, d) 训练数据
+    y_train: (n,) 训练标签
+    x_new:   (d,) 一个新数据点
+    k:       int 邻居数
+    返回：预测标签
+    """
+    # 1. 算距离
+    dists = np.linalg.norm(X_train - x_new, axis=1)  # (n,)
+
+    # 2. 找最近的 k 个
+    k_idx = np.argsort(dists)[:k]
+
+    # 3. 投票
+    k_labels = y_train[k_idx]
+    most_common = np.bincount(k_labels).argmax()
+
+    return most_common
+```
+
+### 回归
+
+```python
+def knn_regress(X_train, y_train, x_new, k):
+    """返回：预测值"""
+    # 1. 算距离
+    dists = np.linalg.norm(X_train - x_new, axis=1)
+
+    # 2. 找最近的 k 个
+    k_idx = np.argsort(dists)[:k]
+
+    # 3. 取均值
+    return y_train[k_idx].mean()
+```
+
+### 批量预测
+
+```python
+def knn_predict(X_train, y_train, X_test, k):
+    """对所有测试数据预测"""
+    return np.array([knn_classify(X_train, y_train, x, k) for x in X_test])
+```
+
+### 逐行解读
+
+```
+np.linalg.norm(X_train - x_new, axis=1)
+  X_train - x_new → (n, d) 广播减法，每个训练点减去新点
+  norm(axis=1)     → 沿特征维度求距离，得到 (n,) 个距离值
+
+np.argsort(dists)[:k]
+  argsort → 距离从小到大的索引
+  [:k]    → 取前 k 个（最近的）
+
+Counter(k_labels).most_common(1)[0][0]
+  Counter → 统计每个标签出现次数
+  most_common(1) → 出现最多的 1 个
+  [0][0]  → 取出标签值
+```
+
+## 7. sklearn 实现
+
+```python
+from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
+from sklearn.preprocessing import StandardScaler
+
+# 标准化（KNN 必须做！）
+scaler = StandardScaler()
+X_train_s = scaler.fit_transform(X_train)
+X_test_s = scaler.transform(X_test)
+
+# 分类
+knn = KNeighborsClassifier(
+    n_neighbors=5,          # K 值
+    weights='uniform',      # 'uniform' 等权投票 / 'distance' 距离加权
+    metric='minkowski', p=2 # 欧氏距离
+)
+knn.fit(X_train_s, y_train)
+y_pred = knn.predict(X_test_s)
+
+# 回归
+knn_reg = KNeighborsRegressor(n_neighbors=5)
+knn_reg.fit(X_train_s, y_train)
+y_pred = knn_reg.predict(X_test_s)
+```
+
+## 8. 和其他算法对比
+
+```
+              KNN              SVM            Logistic
+训练速度      O(1) 无训练       慢              快
+预测速度      慢 O(n×d)        快              快
+需要标准化    必须              推荐            推荐
+处理高维      差（维度灾难）    好              好
+可解释性      直觉（看邻居）    差              好（看权重）
+```
+
+## 9. 面试高频问答
+
+**Q1: KNN 为什么叫懒学习？**
+训练时什么都不做，只存数据。所有计算都在预测时发生。
+
+**Q2: K=1 和 K=n 的区别？**
+K=1 只看最近一个点，过拟合；K=n 看所有点，等于预测整体多数类，欠拟合。
+
+**Q3: 怎么加速 KNN？**
+KD-Tree 或 Ball Tree 索引，sklearn 里设置 algorithm='kd_tree'。
+
+**Q4: KNN 能处理多分类吗？**
+天然支持，投票就行，不需要像 SVM 那样拼凑。
+
+**Q5: KNN 和 K-Means 的区别？**
+KNN 是有监督分类（K 是邻居数），K-Means 是无监督聚类（K 是簇数），完全不同。
+---
+# K-Means 算法复习笔记 & 代码练习
 
 ## 1. 核心概念速记
 
@@ -337,7 +679,7 @@ Mini-Batch K-Means，每次用随机子集更新。
 **Q5: 特征量纲不同怎么办？**
 先标准化（StandardScaler），否则大量纲特征主导距离。
 ---
-# 02 PCA（主成分分析）复习笔记 & 代码练习
+# PCA（主成分分析）复习笔记 & 代码练习
 
 
 
@@ -710,7 +1052,16 @@ MSE = (1/n) × Σ(yi - ŷi)²
 矩阵形式：
 MSE = (1/n) × (y - Xw).T @ (y - Xw)
 ```
+(A.T).T = A                    转置两次 = 自己
 
+(A + B).T = A.T + B.T          加法的转置 = 各自转置
+
+(AB).T = B.T @ A.T             乘法的转置 = 反过来乘
+                                （最常用！）
+
+(ABC).T = C.T @ B.T @ A.T     多个矩阵同理，全部反过来
+
+(cA).T = c × A.T              标量提出来，不受影响
 ---
 
 ## 4. 正规方程推导
@@ -1114,3 +1465,882 @@ Keras 方式：
 
 **Q5: 多重共线性怎么处理？**
 用 Ridge（L2 让 X.T@X+αI 一定可逆），或 PCA 降维后再回归。
+
+# Logistic Regression 复习笔记
+
+---
+
+## 1. 核心概念速记
+
+| 项目 | 内容 |
+|------|------|
+| **类型** | 有监督分类（名字有 regression 但其实是分类） |
+| **模型** | z = X@w+b → ŷ = sigmoid(z) |
+| **输出** | 概率值 (0~1) |
+| **损失函数** | Binary Cross Entropy（交叉熵） |
+| **求解** | 没有解析解，只能用梯度下降 |
+
+## 2. 和 Linear Regression 的关系
+
+```
+Linear Regression:   X@w+b → ŷ（直接输出数值）
+Logistic Regression: X@w+b → sigmoid → ŷ（输出概率）
+
+就是多了一个 sigmoid
+```
+
+## 3. Sigmoid 函数
+
+```
+sigmoid(z) = 1 / (1 + e^(-z))
+
+z = -∞  → 0
+z = 0   → 0.5
+z = +∞  → 1
+
+作用：把任意实数压到 (0, 1) 之间，当概率用
+```
+
+**决策规则：**
+
+```
+ŷ >= 0.5 → 预测为 1（正类）
+ŷ < 0.5  → 预测为 0（负类）
+
+阈值 0.5 可以调，不是固定的
+```
+
+## 4. 为什么不用 MSE？
+
+```
+如果用 MSE + sigmoid → 损失函数是非凸的 → 很多局部最优 → 梯度下降容易卡住
+如果用交叉熵 + sigmoid → 损失函数是凸的 → 只有一个最优 → 梯度下降保证收敛
+```
+
+## 5. 损失函数：Binary Cross Entropy
+
+```
+单个样本：
+L = -[y × log(ŷ) + (1-y) × log(1-ŷ)]
+
+全部样本：
+L = -(1/n) × Σ[yi × log(ŷi) + (1-yi) × log(1-ŷi)]
+```
+
+**直觉理解：**
+
+```
+当 y=1 时：L = -log(ŷ)
+  ŷ 接近 1 → -log(1) = 0      ← 预测对了，损失小
+  ŷ 接近 0 → -log(0) = ∞      ← 预测错了，损失巨大
+
+当 y=0 时：L = -log(1-ŷ)
+  ŷ 接近 0 → -log(1) = 0      ← 预测对了，损失小
+  ŷ 接近 1 → -log(0) = ∞      ← 预测错了，损失巨大
+```
+
+预测越自信且越错，惩罚越大。
+
+## 6. 梯度
+
+```
+∂L/∂w = (1/n) × X.T @ (ŷ - y)
+∂L/∂b = (1/n) × Σ(ŷi - yi)
+
+和 Linear Regression 的梯度形式几乎一样！
+区别只是 ŷ 过了 sigmoid
+```
+
+## 7. 多分类扩展：Softmax
+
+```
+二分类：sigmoid → 输出 1 个概率
+多分类：softmax → 输出 k 个概率，加起来 = 1
+
+softmax(zi) = e^zi / Σ(e^zj)
+
+例：z = [2, 1, 0.5]
+e^z = [7.39, 2.72, 1.65]
+sum = 11.76
+softmax = [0.63, 0.23, 0.14]   ← 三个类的概率，和为 1
+```
+
+**多分类损失函数：Categorical Cross Entropy**
+
+```
+L = -Σ yi × log(ŷi)    （y 是 one-hot 编码）
+```
+
+## 8. 评估指标
+
+```
+Accuracy  = 预测对的 / 总数           （类别不平衡时不靠谱）
+Precision = TP / (TP + FP)           （预测为正的里面有多少真正）
+Recall    = TP / (TP + FN)           （真正的正样本里抓到多少）
+F1 Score  = 2 × Precision × Recall / (Precision + Recall)
+AUC-ROC   = 不同阈值下 TPR vs FPR 的曲线下面积
+```
+
+```
+              预测正    预测负
+实际正        TP        FN
+实际负        FP        TN
+```
+
+## 9. 正则化
+
+跟 Linear Regression 一样：
+
+```
+L2（Ridge）：Loss + α × Σwi²     → 防过拟合
+L1（Lasso）：Loss + α × Σ|wi|    → 特征选择
+
+sklearn 中参数叫 C = 1/α，C 越小正则化越强（注意是反的）
+```
+
+## 10. sklearn 实现
+
+```python
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, classification_report
+
+# 训练
+model = LogisticRegression(
+    C=1.0,                # 正则化强度（1/α，越小越强）
+    penalty='l2',         # 正则化类型
+    max_iter=1000,        # 最大迭代次数
+    multi_class='multinomial',  # 多分类用 softmax
+    random_state=42
+)
+model.fit(X_train, y_train)
+
+# 预测
+y_pred = model.predict(X_test)          # 类别标签
+y_prob = model.predict_proba(X_test)    # 概率值
+
+# 评估
+print("Accuracy:", accuracy_score(y_test, y_pred))
+print(classification_report(y_test, y_pred))
+
+# 关键属性
+model.coef_         # 权重 (k, d)
+model.intercept_    # 偏置 (k,)
+```
+
+## 11. PyTorch 实现
+
+```python
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
+# 二分类
+model = nn.Linear(d, 1)
+criterion = nn.BCEWithLogitsLoss()   # 内部自带 sigmoid，不用自己加
+optimizer = optim.SGD(model.parameters(), lr=0.01)
+
+for epoch in range(1000):
+    logits = model(X_train_t)                # z = X@w+b（不加sigmoid）
+    loss = criterion(logits, y_train_t)      # 损失函数内部加 sigmoid
+
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+
+# 预测
+with torch.no_grad():
+    probs = torch.sigmoid(model(X_test_t))   # 这里手动加 sigmoid 得到概率
+    preds = (probs >= 0.5).float()            # 概率转标签
+
+# 多分类
+model = nn.Linear(d, k)                      # k 个类
+criterion = nn.CrossEntropyLoss()             # 内部自带 softmax
+```
+
+**注意：**
+
+```
+BCEWithLogitsLoss = sigmoid + 交叉熵（二分类，不用自己加 sigmoid）
+CrossEntropyLoss  = softmax + 交叉熵（多分类，不用自己加 softmax）
+
+训练时不加 sigmoid/softmax（损失函数里已经包含了）
+预测时要手动加 sigmoid/softmax 才能得到概率
+```
+
+## 12. 和 Linear Regression 对比速查
+
+```
+                   Linear Regression    Logistic Regression
+任务               回归                 分类
+输出               连续值               概率 (0~1)
+激活函数           无                   sigmoid / softmax
+损失函数           MSE                  Cross Entropy
+解析解             有（正规方程）        没有
+梯度形式           X.T@(ŷ-y)/n         X.T@(ŷ-y)/n（一样！）
+评估指标           MSE, R²             Accuracy, F1, AUC
+```
+
+## 13. 面试高频问答
+
+**Q1: 为什么叫 Regression 但是做分类？**
+历史原因。它回归的是概率值（0~1），然后用阈值分类。
+
+**Q2: Logistic Regression 能处理非线性问题吗？**
+本身不能，决策边界是线性的。但可以手动加多项式特征或用核方法。
+
+**Q3: sigmoid 和 softmax 的关系？**
+二分类的 softmax 等价于 sigmoid。softmax 是 sigmoid 的多分类推广。
+
+**Q4: 为什么用交叉熵不用 MSE？**
+MSE + sigmoid 是非凸的，交叉熵 + sigmoid 是凸的，优化更可靠。
+
+**Q5: 类别不平衡怎么办？**
+调整 class_weight='balanced'，或调阈值，或用 F1/AUC 代替 accuracy 评估。
+# SVM（支持向量机）复习笔记
+
+---
+
+## 1. 核心概念速记
+
+| 项目 | 内容 |
+|------|------|
+| **类型** | 有监督分类 |
+| **目标** | 找最大间隔的决策边界 |
+| **模型** | w.T@x + b = 0（超平面） |
+| **损失函数** | Hinge Loss + L2 正则化 |
+| **关键特点** | 只有支持向量影响决策边界 |
+
+## 2. 核心思想
+
+```
+找一条线把两类分开，让离线最近的点（支持向量）距离最大
+间隔大 → 不确定的区域很宽 → 但是数据很少落进来 → 大部分预测都很自信
+间隔小 → 不确定的区域很窄 → 但是边界贴着数据 → 新数据稍微偏一点就分错
+
+分类规则：
+  w.T@x + b > 0 → +1（正类）
+  w.T@x + b < 0 → -1（负类）
+
+间隔 = 2 / ‖w‖
+最大化间隔 = 最小化 ‖w‖²/2
+约束：yi × (w.T@xi + b) >= 1
+```
+
+## 3. Hinge Loss
+
+```
+L = max(0, 1 - yi × f(xi))
+
+yi × f(xi) >= 1 → 分对且间隔够 → Loss = 0，不管
+yi × f(xi) < 1  → 分错或间隔不够 → Loss > 0，惩罚
+
+对比 BCE：所有点都有损失
+Hinge：分好的点完全忽略，只关注边界附近
+```
+
+## 4. 软间隔（C 参数）
+
+```
+数据有噪声，不能完美分开 → 允许一些点犯错
+
+Loss = ‖w‖²/2 + C × Σ max(0, 1 - yi(w·xi + b))
+
+C 大 → 不容许犯错 → 间隔小 → 容易过拟合
+C 小 → 容许犯错   → 间隔大 → 可能欠拟合
+```
+
+## 5. 核技巧（处理非线性）
+
+```
+线性不可分时，把数据映射到高维空间
+ x和z相当于两个原始数据的数据点
+常用核函数：
+  线性核：  K(x,z) = x.T@z              直接用
+  多项式核：K(x,z) = (x.T@z + 1)^d      多项式边界
+  RBF 核： K(x,z) = exp(-γ‖x-z‖²)       最常用，任意形状
+
+RBF 核的 γ：
+  γ 大 → 只看附近的点 → 边界复杂 → 容易过拟合
+  γ 小 → 看很远的点   → 边界平滑 → 可能欠拟合
+```
+
+## 6. 手搓线性 SVM（梯度下降）
+
+```python
+import numpy as np
+
+def svm(X, y, lr=0.001, C=1.0, max_iters=1000):
+    """y 必须是 +1 或 -1"""
+    n, d = X.shape
+    w = np.zeros(d)
+    b = 0
+
+    for _ in range(max_iters):
+        for i in range(n):
+            if y[i] * (X[i] @ w + b) >= 1:
+                # 分对了，只更新正则项
+                w = w - lr * w
+            else:
+                # 分错了，更新 w 和 b
+                w = w - lr * (w - C * y[i] * X[i])
+                b = b + lr * C * y[i]
+
+    return w, b
+
+# 预测：np.sign(X @ w + b) → +1 或 -1
+```
+
+## 7. sklearn 实现
+
+```python
+from sklearn.svm import SVC
+
+# 线性 SVM
+model = SVC(kernel='linear', C=1.0)
+
+# RBF 核 SVM（最常用）
+model = SVC(kernel='rbf', C=1.0, gamma='scale')
+
+model.fit(X_train, y_train)
+y_pred = model.predict(X_test)
+
+# 关键属性
+model.support_vectors_     # 支持向量坐标
+model.n_support_           # 每类支持向量数
+```
+
+## 8. 和 Logistic Regression 对比
+
+```
+                  Logistic Regression      SVM
+关注哪些点        所有点                    只看支持向量
+输出              概率                      标签（原生无概率）
+损失函数          BCE                       Hinge Loss
+处理非线性        手动加特征                 核技巧
+数据量大          快                        慢
+```
+
+## 9. 面试高频问答
+
+**Q1: 什么是支持向量？**
+离决策边界最近的点，去掉其他点不影响边界，去掉支持向量边界就变了。
+
+**Q2: C 和 γ 怎么调？**
+用网格搜索 + 交叉验证。C 控制容错，γ 控制 RBF 核的影响范围。
+
+**Q3: SVM 能做回归吗？**
+能，叫 SVR（Support Vector Regression），sklearn 里是 `from sklearn.svm import SVR`。
+
+**Q4: SVM 为什么不适合大数据？**
+训练复杂度 O(n²~n³)，数据量大时非常慢。大数据用 Logistic Regression 或深度学习。
+
+**Q5: 核技巧的本质？**
+不需要真的把数据变到高维，只算高维空间里的内积，省计算量。
+
+# 拉格朗日乘子法 & SVM 推导笔记
+
+---
+
+## 1. 核心思想
+
+**把"有约束的优化"变成"无约束的优化"。**
+
+```
+有约束：最小化 f(w)，约束 g(w) = 0
+  ↓ 引入乘子 λ
+无约束：最小化 L(w, λ) = f(w) + λ × g(w)
+  ↓ 对所有变量求导 = 0
+解出 w 和 λ
+```
+
+## 2. 等式约束的例子
+
+```
+最小化：x² + y²           （离原点最近）
+约束：  x + y - 4 = 0     （必须在这条线上）
+
+L = x² + y² + λ(x + y - 4)
+
+∂L/∂x = 2x + λ = 0       → x = -λ/2
+∂L/∂y = 2y + λ = 0       → y = -λ/2
+∂L/∂λ = x + y - 4 = 0    → 约束自动满足
+
+解：x = 2, y = 2, λ = -4
+```
+
+## 3. 不等式约束（SVM 用的）
+
+等式约束用 λ，不等式约束用 α >= 0，多一个 KKT 条件：
+
+```
+约束：g(w) >= 0
+
+KKT 条件：
+  α >= 0
+  α × g(w) = 0    ← 互补松弛条件
+
+意思：
+  约束没取等（g(w) > 0）→ α 必须 = 0（不起作用）
+  α > 0 → 约束必须取等（g(w) = 0，在边界上）
+```
+
+## 4. SVM 的拉格朗日推导
+
+### 原始问题
+
+```
+最小化：‖w‖²/2
+约束：  yi(w.T@xi + b) >= 1    对所有 i
+```
+
+### 构造拉格朗日函数
+
+```
+L(w, b, α) = ‖w‖²/2 - Σ αi[yi(w.T@xi + b) - 1]
+
+αi >= 0
+```
+
+### 对 w 求导 = 0
+
+```
+∂L/∂w = w - Σ αi×yi×xi = 0
+
+→  w = Σ αi×yi×xi    ← 关键结论！
+```
+
+### 对 b 求导 = 0
+
+```
+∂L/∂b = -Σ αi×yi = 0
+
+→  Σ αi×yi = 0
+```
+
+### KKT 互补松弛条件
+
+```
+αi × [yi(w.T@xi + b) - 1] = 0
+
+两种情况：
+  αi = 0 → 这个点不影响 w（不是支持向量）
+  αi > 0 → yi(w.T@xi + b) = 1（在边界上，是支持向量）
+```
+
+## 5. 从 w 到核技巧
+
+### w 代入决策函数
+
+```
+f(x) = w.T@x + b
+     = [Σ αi×yi×xi].T @ x + b
+     = Σ αi×yi×(xi.T@x) + b
+                ─────────
+                内积
+```
+
+### 把内积换成核函数
+
+```
+线性：f(x) = Σ αi×yi×(xi.T@x) + b
+核：  f(x) = Σ αi×yi×K(xi, x) + b
+
+K 可以是：
+  线性核：  xi.T@x
+  多项式核：(xi.T@x + 1)^d
+  RBF 核：  exp(-γ‖xi-x‖²)
+```
+
+### 核函数的本质
+
+```
+K(xi, x) = φ(xi).T @ φ(x)
+
+不用真的算 φ（可能是无限维）
+直接用 K 公式得到高维空间的内积结果
+```
+
+## 6. 完整推导链条
+
+```
+有约束优化
+  ↓ 拉格朗日乘子法
+L(w, b, α) = ‖w‖²/2 - Σαi[yi(w.T@xi+b) - 1]
+  ↓ 对 w 求导 = 0
+w = Σ αi×yi×xi
+  ↓ 代入决策函数
+f(x) = Σ αi×yi×(xi.T@x) + b
+  ↓ KKT 条件
+大部分 αi = 0，只有支持向量的 αi > 0
+  ↓ 核技巧
+把 xi.T@x 换成 K(xi, x)，处理非线性
+```
+
+## 7. 记忆要点
+
+```
+1. 拉格朗日 = 约束塞进目标函数
+2. 求导 = 0 得到 w = Σαi×yi×xi
+3. KKT 条件 → 只有支持向量的 α > 0
+4. w 代入决策函数 → 出现内积 xi.T@x
+5. 内积换成核函数 → 高维分类
+```
+# 决策树 & Random Forest & XGBoost 复习笔记
+
+---
+
+## 1. 决策树（Decision Tree）
+
+### 核心概念
+
+| 项目 | 内容 |
+|------|------|
+| **类型** | 有监督（分类 & 回归） |
+| **核心思想** | 不断问问题，把数据分成越来越纯的子集 |
+| **分类树** | 叶子节点投票（多数类） |
+| **回归树** | 叶子节点取均值 |
+
+### 怎么选分裂特征？
+
+**信息增益（Entropy，ID3/C4.5 用）：**
+
+```
+Entropy = -Σ pi × log2(pi)
+
+全是一类：Entropy = 0（最纯）
+一半一半：Entropy = 1（最不纯）
+
+信息增益 = 分裂前的 Entropy - 分裂后的加权 Entropy
+选信息增益最大的特征
+```
+
+**基尼系数（Gini，CART / sklearn 默认）：**
+
+```
+Gini = 1 - Σ pi²
+
+全是一类：Gini = 0（最纯）
+一半一半：Gini = 0.5（最不纯）
+
+选分裂后 Gini 最小的特征
+```
+
+**回归树用 MSE：**
+
+```
+选分裂后 MSE 下降最多的特征和阈值
+```
+
+### 过拟合控制
+
+```
+max_depth：      限制树的深度
+min_samples_split：节点最少要多少样本才能继续分
+min_samples_leaf： 叶子最少要多少样本
+max_features：    每次分裂只看部分特征
+剪枝（pruning）：  先长完再砍掉不好的分支
+```
+
+### 优缺点
+
+```
+优点：可解释性强、不用标准化、能处理非线性
+缺点：容易过拟合、不稳定（数据变一点树就变很多）
+```
+
+### sklearn 实现
+
+```python
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
+
+# 分类
+clf = DecisionTreeClassifier(
+    criterion='gini',       # 'gini' 或 'entropy'
+    max_depth=5,
+    min_samples_split=10,
+    random_state=42
+)
+clf.fit(X_train, y_train)
+y_pred = clf.predict(X_test)
+
+# 回归
+reg = DecisionTreeRegressor(max_depth=5)
+reg.fit(X_train, y_train)
+```
+
+---
+
+## 2. Bagging vs Boosting
+
+两种集成思路，区别很重要：
+
+```
+Bagging（并行）：
+  多棵树独立训练，最后投票/取均值
+  每棵树看到的数据和特征都不同
+  目的：减少方差（过拟合）
+  代表：Random Forest
+
+Boosting（串行）：
+  一棵接一棵训练，后一棵修正前一棵的错误
+  每棵树关注之前分错的样本
+  目的：减少偏差（欠拟合）
+  代表：AdaBoost → GBDT → XGBoost
+```
+
+```
+          Bagging              Boosting
+训练方式   并行，独立            串行，依赖前一棵
+关注点     减少方差              减少偏差
+过拟合风险  低                   较高（需要控制）
+代表       Random Forest        XGBoost, LightGBM
+```
+
+---
+
+## 3. Random Forest
+
+### 核心思想
+
+```
+训练很多棵决策树，每棵树用不同的数据和特征
+最后投票（分类）或取均值（回归）
+
+两层随机性：
+  1. 数据随机：每棵树用 bootstrap 采样（有放回抽样）
+  2. 特征随机：每次分裂只看 sqrt(d) 个随机特征
+```
+
+### 为什么有效？
+
+```
+单棵树：容易过拟合，不稳定
+多棵不同的树投票：个别树的错误被其他树纠正
+
+就像：
+  一个人判断 → 容易出错
+  100 个人投票 → 集体智慧，更靠谱
+```
+
+### sklearn 实现
+
+```python
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+
+rf = RandomForestClassifier(
+    n_estimators=100,       # 树的数量
+    max_depth=10,           # 每棵树的最大深度
+    max_features='sqrt',    # 每次分裂看 sqrt(d) 个特征
+    min_samples_split=5,
+    n_jobs=-1,              # 并行训练（用所有 CPU）
+    random_state=42
+)
+rf.fit(X_train, y_train)
+y_pred = rf.predict(X_test)
+
+# 特征重要性
+importances = rf.feature_importances_    # 每个特征的重要程度
+```
+
+### 关键参数
+
+```
+n_estimators：树的数量，越多越好（但有上限，收益递减）
+max_depth：单棵树深度，太深过拟合
+max_features：每次分裂看多少特征
+  分类默认 sqrt(d)
+  回归默认 d/3
+```
+
+---
+
+## 4. XGBoost
+
+### 核心思想
+
+```
+Boosting 的思路：每棵新树学习前面所有树的残差（错误）
+
+第1棵树：预测 → 算残差
+第2棵树：拟合残差 → 新残差更小了
+第3棵树：拟合新残差 → 残差更更小了
+...
+最终预测 = 所有树的预测之和
+```
+
+### 用数字理解
+
+```
+真实值 y = 100
+
+第1棵树预测：80      → 残差 = 100-80 = 20
+第2棵树拟合残差：15  → 新残差 = 20-15 = 5
+第3棵树拟合残差：3   → 新残差 = 5-3 = 2
+
+最终预测 = 80 + 15 + 3 = 98（很接近100了）
+```
+
+### XGBoost 比 GBDT 强在哪？
+
+```
+1. 正则化：损失函数自带 L1/L2，防过拟合
+2. 二阶导数：用泰勒展开到二阶，优化更快更准
+3. 列采样：像 Random Forest 一样随机选特征
+4. 缺失值处理：自动学习缺失值该往左还是往右
+5. 并行化：虽然树是串行的，但每棵树内部的分裂是并行的
+6. 剪枝：先长完再剪，比 GBDT 的提前停止更好
+```
+
+### XGBoost 目标函数
+
+```
+Obj = Σ L(yi, ŷi) + Σ Ω(fk)
+      ──────────     ────────
+      损失函数        正则项（控制树的复杂度）
+
+Ω(f) = γT + (1/2)λΣwj²
+       ↑        ↑
+     叶子数量   叶子权重的L2
+
+γ 大 → 倾向于少的叶子 → 简单的树
+λ 大 → 叶子权重小 → 预测更保守
+
+XGBoost 的 Loss Function 不是固定的，根据任务选：
+回归：   MSE        → objective='reg:squarederror'
+二分类：  BCE        → objective='binary:logistic'
+多分类：  CE         → objective='multi:softmax'
+排序：   Pairwise   → objective='rank:pairwise'
+```
+
+### Python 实现
+
+```python
+import xgboost as xgb
+from sklearn.model_selection import train_test_split
+
+# 方式 1：sklearn 接口（最简单）
+model = xgb.XGBClassifier(
+    n_estimators=100,       # 树的数量
+    max_depth=6,            # 每棵树深度
+    learning_rate=0.1,      # 学习率（缩小每棵树的贡献）
+    subsample=0.8,          # 每棵树用 80% 数据
+    colsample_bytree=0.8,   # 每棵树用 80% 特征
+    reg_alpha=0,            # L1 正则
+    reg_lambda=1,           # L2 正则
+    random_state=42
+)
+model.fit(X_train, y_train)
+y_pred = model.predict(X_test)
+
+# 回归
+reg = xgb.XGBRegressor(n_estimators=100, max_depth=6, learning_rate=0.1)
+
+# 特征重要性
+importances = model.feature_importances_
+
+# 方式 2：原生接口（更多功能）
+dtrain = xgb.DMatrix(X_train, label=y_train)
+dtest = xgb.DMatrix(X_test, label=y_test)
+
+params = {
+    'max_depth': 6,
+    'learning_rate': 0.1,
+    'objective': 'binary:logistic',    # 二分类
+    'eval_metric': 'logloss',
+    'subsample': 0.8,
+    'colsample_bytree': 0.8,
+}
+
+model = xgb.train(
+    params, dtrain,
+    num_boost_round=100,
+    evals=[(dtest, 'test')],
+    early_stopping_rounds=10,          # 10轮不改善就停
+    verbose_eval=20
+)
+y_pred = model.predict(dtest)
+```
+
+### 关键参数速记
+
+```
+n_estimators / num_boost_round：树的数量
+max_depth：每棵树深度（默认6，比RF浅）
+learning_rate / eta：学习率，缩小每棵树的贡献
+  小 → 需要更多树，但更稳定
+  大 → 需要更少树，但容易过拟合
+subsample：行采样比例
+colsample_bytree：列采样比例
+reg_alpha：L1 正则
+reg_lambda：L2 正则
+early_stopping_rounds：提前停止
+```
+
+### 调参顺序
+
+```
+1. 先固定 learning_rate=0.1
+2. 调 n_estimators（用 early_stopping 自动选）
+3. 调 max_depth（3~10）
+4. 调 subsample 和 colsample_bytree（0.6~1.0）
+5. 调 reg_alpha 和 reg_lambda
+6. 最后降低 learning_rate，增加 n_estimators
+```
+
+---
+
+## 5. 三者对比
+
+```
+              决策树         Random Forest      XGBoost
+模型          1棵树           多棵树并行          多棵树串行
+思路          单独决策         投票                逐步纠错
+过拟合        严重            不严重              需要控制
+速度          快              中等（可并行）       慢（但有优化）
+可解释性      高              中                  低
+调参难度      简单            简单                复杂
+通常效果      一般            好                  最好
+```
+
+---
+
+## 6. LightGBM 和 CatBoost（补充）
+
+```
+XGBoost 之后的改进：
+
+LightGBM（微软）：
+  按叶子生长而不是按层 → 更快
+  直方图优化 → 大数据更高效
+  适合：数据量大、特征多
+
+CatBoost（Yandex）：
+  原生支持类别特征（不用手动 One-Hot）
+  有序 Boosting → 减少过拟合
+  适合：类别特征多的数据
+
+实际选择：
+  数据小 → XGBoost
+  数据大 → LightGBM
+  类别特征多 → CatBoost
+  竞赛中三个都试 → 选最好的
+```
+
+---
+
+## 7. 面试高频问答
+
+**Q1: Random Forest 和 XGBoost 怎么选？**
+RF 不容易过拟合，调参简单，适合快速基线。XGBoost 效果通常更好，但需要仔细调参。
+
+**Q2: XGBoost 的 learning_rate 是什么？**
+每棵新树的贡献乘以 learning_rate 缩小。0.1 意味着每棵树只贡献 10%，需要更多树但更稳定。
+
+**Q3: 为什么 XGBoost 在 Kaggle 上这么流行？**
+结构化数据上效果最好，内置正则化防过拟合，能处理缺失值，有 early_stopping。
+
+**Q4: Bagging 减少方差，Boosting 减少偏差，什么意思？**
+方差大 = 换一批数据模型变化大（过拟合），Bagging 通过平均多个模型降低这种不稳定。偏差大 = 模型太简单抓不住规律（欠拟合），Boosting 逐步增加复杂度来改善。
+
+**Q5: 决策树需要标准化吗？**
+不需要。决策树只看特征的排序，不看绝对值大小，所以量纲不影响。这也是树模型的一大优势。
