@@ -421,11 +421,11 @@ def pca(X, k):
     eigenvalues = eigenvalues[idx]
     eigenvectors = eigenvectors[:, idx]        # 注意：列是特征向量
 
-    # 5. 取前 k 个
+    # 5. 取前 k 个，这里要转置，因为算出来的eigenvectors是按列看的
     components = eigenvectors[:, :k].T         # (k, d)
     explained_ratio = eigenvalues[:k] / eigenvalues.sum()
 
-    # 6. 投影
+    # 6. 投影 dot product
     X_pca = X_centered @ eigenvectors[:, :k]   # (n, d) @ (d, k) = (n, k)
 
     return X_pca, components, explained_ratio
@@ -456,66 +456,6 @@ X_centered.T @ X_centered → (d, n) @ (n, d) = (d, d)
 np.linalg.eigh 返回的 eigenvectors 中，每一列是一个特征向量
 所以取前 k 个是 eigenvectors[:, :k]，不是 eigenvectors[:k]
 ```
-
----
-
-## 7. 伪代码练习
-
-```python
-import numpy as np
-
-def pca(X, k):
-    n, d = X.shape
-
-    # Step 1: 中心化
-    # 提示：每个特征减去该特征的均值
-    mean = ______
-    X_centered = ______
-
-    # Step 2: 协方差矩阵
-    # 提示：X_centered 转置乘自己，除以 (n-1)
-    cov = ______
-
-    # Step 3: 特征值分解
-    # 提示：用 np.linalg.eigh 处理对称矩阵
-    eigenvalues, eigenvectors = ______
-
-    # Step 4: 按特征值从大到小排序
-    # 提示：argsort 返回升序索引，[::-1] 反转成降序
-    idx = ______
-    eigenvalues = eigenvalues[idx]
-    eigenvectors = eigenvectors[:, idx]
-
-    # Step 5: 投影到前 k 个主成分
-    # 提示：X_centered 乘以前 k 个特征向量
-    X_pca = ______
-
-    return X_pca
-```
-
-**参考答案 ↓**
-
-```python
-def pca(X, k):
-    n, d = X.shape
-
-    mean = X.mean(axis=0)
-    X_centered = X - mean
-
-    cov = (X_centered.T @ X_centered) / (n - 1)
-
-    eigenvalues, eigenvectors = np.linalg.eigh(cov)
-
-    idx = np.argsort(eigenvalues)[::-1]
-    eigenvalues = eigenvalues[idx]
-    eigenvectors = eigenvectors[:, idx]
-
-    X_pca = X_centered @ eigenvectors[:, :k]
-
-    return X_pca
-```
-
----
 
 ## 8. Scikit-Learn 实现
 
