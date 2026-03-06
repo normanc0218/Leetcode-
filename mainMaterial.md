@@ -1440,7 +1440,205 @@ def maxProduct(self, nums):
 | 优点 | 代码简洁，不易出错 | 更通用，易推广 |
 ## 300 Longest Increasing Subsequence
 
+## 方法一：DP O(n²) — 动规五部曲
+
+### 1. dp 数组含义
+
+`dp[i]` = 以 `nums[i]` 结尾的最长递增子序列长度
+
+### 2. 递推公式
+
+```python
+if nums[i] > nums[j]:
+    dp[i] = max(dp[i], dp[j] + 1)
+```
+
+遍历 i 之前所有的 j，只要 `nums[i] > nums[j]`，就能接在 j 的子序列后面。
+
+### 3. 初始化
+
+`dp = [1] * n`，每个元素自身就是长度 1 的子序列。
+
+### 4. 遍历顺序
+
+外层 i 从左到右，内层 j 从 0 到 i-1。`dp[i]` 依赖前面所有 `dp[j]`。
+
+### 5. 举例推导 nums = [10, 9, 2, 5, 3, 7]
+
+```
+i=0: 无 j 可比              dp=[1,1,1,1,1,1]
+i=1: 9<10                   dp=[1,1,1,1,1,1]
+i=2: 2<10, 2<9              dp=[1,1,1,1,1,1]
+i=3: 5>2                    dp=[1,1,1,2,1,1]
+i=4: 3>2                    dp=[1,1,1,2,2,1]
+i=5: 7>2, 7>5, 7>3          dp=[1,1,1,2,2,3]
+
+结果：3（2,5,7 或 2,3,7）
+```
+
+### 完整代码
+
+```python
+def lengthOfLIS(self, nums):
+    n = len(nums)
+    dp = [1] * n
+    res = 1
+    for i in range(n):
+        for j in range(i):
+            if nums[i] > nums[j]:
+                dp[i] = max(dp[i], dp[j] + 1)
+        res = max(res, dp[i])  # 放外层循环，不要放内层
+    return res
+```
+
+---
+
+## 方法二：贪心 + 二分 O(n log n)
+
+### 核心思路
+
+维护 `tails` 数组，`tails[i]` = 长度为 i+1 的递增子序列的**最小末尾元素**。让末尾尽可能小，给后续留更多空间。
+
+对每个新元素：
+- 比 tails 所有元素都大 → 接在后面，长度 +1
+- 否则 → 二分找到第一个 ≥ 它的位置，替换掉
+
+### 举例 nums = [10, 9, 2, 5, 3, 7]
+
+```
+10 → tails = [10]
+ 9 → 替换10  tails = [9]
+ 2 → 替换9   tails = [2]
+ 5 → 接后面  tails = [2, 5]
+ 3 → 替换5   tails = [2, 3]
+ 7 → 接后面  tails = [2, 3, 7]
+
+长度 = 3
+```
+
+> **注意：** tails 的内容不一定是真正的 LIS，但长度一定正确。
+
+### 完整代码
+
+```python
+def lengthOfLIS(self, nums):
+    tails = []
+    for num in nums:
+        lo, hi = 0, len(tails)
+        while lo < hi:
+            mid = (lo + hi) // 2
+            if tails[mid] < num:
+                lo = mid + 1
+            else:
+                hi = mid
+        if lo == len(tails):
+            tails.append(num)
+        else:
+            tails[lo] = num
+    return len(tails)
+```
+
+---
+
+## 对比
+
+| 方法 | 时间 | 空间 | 特点 |
+|---|---|---|---|
+| DP | O(n²) | O(n) | 直观，动规五部曲标准题 |
+| 贪心+二分 | O(n log n) | O(n) | 最优，但 tails 不是真正的 LIS |
 ## 62 Unique Paths
+## 动规五部曲
+
+### 1. dp 数组含义
+
+`dp[i][j]` = 从左上角 (0,0) 到位置 (i,j) 的路径总数
+
+### 2. 递推公式
+
+```python
+dp[i][j] = dp[i-1][j] + dp[i][j-1]
+```
+
+只能从上方或左方到达，两个方向的路径数相加。
+
+### 3. 初始化
+
+第一行和第一列都是 1，因为只有一条路可以到达（一直向右或一直向下）。
+
+```python
+for i in range(m):
+    dp[i][0] = 1
+for j in range(n):
+    dp[0][j] = 1
+```
+
+### 4. 遍历顺序
+
+从左到右、从上到下，`i` 从 1 到 m-1，`j` 从 1 到 n-1。因为 `dp[i][j]` 依赖上方和左方的值。
+
+### 5. 举例推导 m=3, n=3
+
+```
+1  1  1
+1  2  3
+1  3  6
+
+结果：6
+```
+
+---
+
+## 完整代码
+
+```python
+def uniquePaths(self, m, n):
+    dp = [[0] * n for _ in range(m)]
+    for i in range(m):
+        dp[i][0] = 1
+    for j in range(n):
+        dp[0][j] = 1
+    for i in range(1, m):
+        for j in range(1, n):
+            dp[i][j] = dp[i-1][j] + dp[i][j-1]
+    return dp[m-1][n-1]
+```
+
+---
+
+## 空间优化：O(n)
+
+每一行只依赖当前行左边和上一行同位置，可以压缩成一维数组：
+
+```python
+def uniquePaths(self, m, n):
+    dp = [1] * n
+    for i in range(1, m):
+        for j in range(1, n):
+            dp[j] += dp[j-1]  # dp[j] 本身是上方，dp[j-1] 是左方
+    return dp[n-1]
+```
+
+---
+
+## 数学解法：O(m+n)
+
+本质是从 (0,0) 到 (m-1,n-1) 走 m-1 步下 + n-1 步右，选哪些步向下：
+
+```python
+from math import comb
+def uniquePaths(self, m, n):
+    return comb(m + n - 2, m - 1)
+```
+
+---
+
+## 对比
+
+| 方法 | 时间 | 空间 |
+|---|---|---|
+| 二维 DP | O(mn) | O(mn) |
+| 一维 DP | O(mn) | O(n) |
+| 组合数学 | O(m+n) | O(1) |
 ## 1143 Longest Common Subsequence
 ## 309 Best Time to Buy and Sell Stock with Cooldown
 ## 518 Coin Change II
