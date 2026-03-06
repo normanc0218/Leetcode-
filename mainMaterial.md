@@ -1457,3 +1457,138 @@ def maxProduct(self, nums):
 ## 1899 Merge Triplets to Form Target Triplet
 ## 763 Partition Labels
 ## 678 Valid Parenthesis Str
+
+
+## 56 Merge Intervals
+## 57 Insert Interval
+## 435 Non-overlapping Intervals
+## 920 Meeting Rooms
+## 2402 Meeting Rooms III
+
+
+## 48 Rotate Image
+## 54 Spiral Matrix
+## 73 Set Matrix Zeroes
+
+## 思路演进
+
+本质是模拟题，没有算法技巧，核心难点在于**怎么省空间**。不能边遍历边置零，否则新产生的 0 会影响后续判断。
+
+---
+
+## 方法一：暴力 O(mn) 空间
+
+存所有 0 的坐标，再统一置零。不需要 copy 矩阵。
+
+```python
+def setZeroes(self, matrix):
+    m, n = len(matrix), len(matrix[0])
+    zeros = []
+    for i in range(m):
+        for j in range(n):
+            if matrix[i][j] == 0:
+                zeros.append((i, j))
+    for i, j in zeros:
+        for k in range(n):
+            matrix[i][k] = 0
+        for k in range(m):
+            matrix[k][j] = 0
+```
+
+---
+
+## 方法二：O(m+n) 空间 — 用 set 记录行列
+
+坐标有冗余，其实只需要知道**哪些行**和**哪些列**要置零。
+
+```python
+def setZeroes(self, matrix):
+    m, n = len(matrix), len(matrix[0])
+    row = set()
+    col = set()
+    for i in range(m):
+        for j in range(n):
+            if matrix[i][j] == 0:
+                row.add(i)
+                col.add(j)
+    for i in range(m):
+        for j in range(n):
+            if i in row or j in col:
+                matrix[i][j] = 0
+```
+
+---
+
+## 方法三：O(1) 空间 — 用第一行/列当标记
+
+把 set 的功能"寄存"到矩阵的第一行和第一列上：
+
+| set 做法 | O(1) 做法 |
+|---|---|
+| `row.add(i)` | `matrix[i][0] = 0` |
+| `col.add(j)` | `matrix[0][j] = 0` |
+| `i in row` | `matrix[i][0] == 0` |
+| `j in col` | `matrix[0][j] == 0` |
+
+### 四步，顺序不能乱
+
+1. **先救信息**：记录第一行/列自身是否有 0（马上要被覆盖当标记了）
+2. **扫描内部，做标记**：往第一行/列写标记
+3. **扫描内部，置零**：读第一行/列的标记
+4. **最后处理第一行/列自己**
+
+```python
+def setZeroes(self, matrix):
+    m, n = len(matrix), len(matrix[0])
+
+    # 1. 先救第一行/列的信息
+    first_row_zero = any(matrix[0][j] == 0 for j in range(n))  # 别漏 == 0
+    first_col_zero = any(matrix[i][0] == 0 for i in range(m))
+
+    # 2. 扫描内部，做标记
+    for i in range(1, m):
+        for j in range(1, n):
+            if matrix[i][j] == 0:
+                matrix[i][0] = 0
+                matrix[0][j] = 0
+
+    # 3. 扫描内部，置零
+    for i in range(1, m):
+        for j in range(1, n):
+            if matrix[i][0] == 0 or matrix[0][j] == 0:
+                matrix[i][j] = 0
+
+    # 4. 最后处理第一行/列
+    if first_row_zero:
+        for j in range(n):
+            matrix[0][j] = 0
+    if first_col_zero:
+        for i in range(m):
+            matrix[i][0] = 0
+```
+
+### 易错点
+
+- `any(matrix[0][j] for ...)` 检查的是值是否 truthy（非零即 True），必须写 `== 0`
+- 第一行/列必须**最后**处理，否则标记信息会被提前覆盖
+- 内部循环从 1 开始，不包含第一行/列
+
+---
+
+## 对比
+
+| 方法 | 时间 | 空间 | 思路 |
+|---|---|---|---|
+| 存坐标 | O(mn) | O(mn) | 直接记录所有 0 的位置 |
+| set 记录行列 | O(mn) | O(m+n) | 只记录哪些行列要置零 |
+| 第一行/列当标记 | O(mn) | O(1) | 借用矩阵自身空间存标记 |
+## 202 Happy Number
+## 66 Plus One
+## 50 Pow(x, n)
+
+## 136 Single Number
+## 191 Number of 1 Bits
+## 338 Counting Bits
+## 268 Missing Number
+## 371 Sum of Two Integers
+## 190 Reverse Bits
