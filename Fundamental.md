@@ -13,6 +13,7 @@ Personal ML knowledge base.
 - [Support Vector Machine](#svm支持向量机复习笔记)
 - [Lagrangian SVM derivation](#拉格朗日乘子法--svm-推导笔记)
 - [Random Forest & XGBoost](#决策树--random-forest--xgboost-复习笔记)
+- [Convolutional Neural Network](#cnn-卷积神经网络-完整复习笔记)
 
 
 
@@ -1587,7 +1588,7 @@ AUC-ROC   = 不同阈值下 TPR vs FPR 的曲线下面积
 实际负        FP        TN
 ```
 
-## 9. 正则化
+## 9. 正则化&手写实现
 
 跟 Linear Regression 一样：
 
@@ -1596,6 +1597,28 @@ L2（Ridge）：Loss + α × Σwi²     → 防过拟合
 L1（Lasso）：Loss + α × Σ|wi|    → 特征选择
 
 sklearn 中参数叫 C = 1/α，C 越小正则化越强（注意是反的）
+```
+```python
+def sigmoid(z):
+    return 1 / (1 + np.exp(-z))
+
+def logistic_regression(X, y, lr=0.01, max_iters=1000):
+    n, d = X.shape
+    w = np.zeros(d)
+    b = 0
+
+    for _ in range(max_iters):
+        z = X @ w + b
+        y_pred = sigmoid(z)
+
+        dw = (1/n) * X.T @ (y_pred - y)
+        db = (1/n) * np.sum(y_pred - y)
+
+        w = w - lr * dw
+        b = b - lr * db
+
+    return w, b
+
 ```
 
 ## 10. sklearn 实现
@@ -2344,3 +2367,438 @@ RF 不容易过拟合，调参简单，适合快速基线。XGBoost 效果通常
 
 **Q5: 决策树需要标准化吗？**
 不需要。决策树只看特征的排序，不看绝对值大小，所以量纲不影响。这也是树模型的一大优势。
+
+# CNN 卷积神经网络 完整复习笔记
+
+---
+
+## 1. 为什么需要 CNN？
+
+```
+全连接处理 224×224×3 图片：
+  输入 = 150,528 个像素
+  一层 1000 个神经元 → 1.5 亿参数 → 过拟合 + 慢
+
+CNN 用一个 3×3 卷积核：
+  参数 = 3 × 3 × 3 = 27 → 差了 500 万倍
+```
+
+两个核心思想：
+
+```
+局部连接：每个神经元只看一小块区域（3×3），不看整张图
+参数共享：同一个卷积核滑过整张图，到处用同样的参数
+```
+
+---
+
+## 2. 卷积（Convolution）— 提取特征
+
+### 怎么算？
+
+小窗口（卷积核）在图上滑动，对应位置相乘再求和：
+
+```
+输入区域      卷积核        计算
+[1, 0, 1]    [1, 0, 1]
+[0, 1, 0]  × [0, 1, 0]  = 1×1+0×0+1×1+0×0+1×1+0×0+1×1+0×0+1×1 = 5
+[1, 0, 1]    [1, 0, 1]
+```
+
+### 多通道（RGB）怎么算？
+
+```
+R 通道 3×3 区域 × R 卷积核 = 一个数
+G 通道 3×3 区域 × G 卷积核 = 一个数
+B 通道 3×3 区域 × B 卷积核 = 一个数
+
+三个加起来 + bias = 输出的一个像素
+```
+
+一个卷积核 shape = (输入通道, 高, 宽)：
+
+```
+RGB 输入 → 卷积核 (3, 3, 3) → 27 个参数 → 1 个特征图
+16 个卷积核 → 16 个特征图 → 输出 16 个通道
+```
+
+### 通道的含义变化
+
+```
+输入时：通道 = 颜色（R, G, B）
+第一层卷积后：通道 = 特征（边缘、纹理、色块...）
+深层：通道 = 高级特征（眼睛、轮子、脸...）
+
+第一层卷积把 RGB 混合了，之后就跟颜色无关了
+```
+
+### 关键超参数
+
+```
+kernel_size：卷积核大小，常用 3×3
+stride：步长，每次滑几格，默认 1
+padding：边缘填 0，保持输出尺寸不变
+```
+
+### 输出尺寸公式（必背）
+
+```
+output = (input - kernel + 2×padding) / stride + 1
+
+例：input=64, kernel=3, padding=0, stride=1
+  = (64 - 3 + 0) / 1 + 1 = 62        ← CNN Explainer 里的
+
+例：input=32, kernel=3, padding=1, stride=1
+  = (32 - 3 + 2) / 1 + 1 = 32        ← 尺寸不变
+
+例：input=32, kernel=3, padding=0, stride=2
+  = (32 - 3 + 0) / 2 + 1 = 15        ← 接近减半
+```
+
+### Padding 是什么？
+
+```
+不是裁剪，是在输入外面加一圈 0
+
+padding=0：不填充 → 64 变 62（每边少1）
+padding=1：填一圈0 → 64 变 64（尺寸不变）
+
+作用：
+  让卷积核能滑到边缘
+  保持输出尺寸不变
+  边缘像素不会被忽略
+```
+
+### 卷积核的初始化
+
+```
+初始化：随机数（Kaiming/He 初始化，PyTorch 默认）
+训练：通过反向传播自动学习
+
+训练后第一层通常学到：
+  [-1, 0, 1]
+  [-1, 0, 1]  → 检测竖边缘
+  [-1, 0, 1]
+
+不需要手动设计，网络自己学出来
+```
+
+---
+
+## 3. ReLU — 引入非线性
+
+```
+ReLU(x) = max(0, x)
+
+正数 → 不变
+负数 → 变成 0
+
+例：[3, -1, 5, -2, 0, 4] → [3, 0, 5, 0, 0, 4]
+```
+
+为什么需要？
+
+```
+卷积本身是线性运算（乘和加）
+堆再多层也还是线性的
+加 ReLU 才能学非线性模式
+```
+
+为什么用 ReLU 不用 sigmoid？
+
+```
+sigmoid：梯度最大只有 0.25，层多了梯度消失
+ReLU：正数区域梯度恒为 1，不会消失，训练快
+```
+
+---
+
+## 4. 池化（Pooling）— 缩小尺寸
+
+### MaxPool 2×2
+
+每 2×2 区域取最大值，尺寸减半：
+
+```
+[1, 3, | 2, 8]
+[5, 2, | 3, 0]     → [5, 8]
+───────|───────       [4, 6]
+[4, 1, | 6, 2]
+[0, 3, | 1, 4]
+
+左上 max(1,3,5,2) = 5
+右上 max(2,8,3,0) = 8
+左下 max(4,1,0,3) = 4
+右下 max(6,2,1,4) = 6
+```
+
+### MaxPool 没有可学习参数！
+
+```
+Conv：有参数（卷积核权重），需要训练
+Pool：没有参数，只是取最大值
+ReLU：没有参数，只是 max(0, x)
+```
+
+### 为什么要池化？
+
+```
+减少计算量：尺寸减半，参数少 4 倍
+增大感受野：后面的层能看到更大区域
+平移不变性：特征稍微移动几个像素，max 结果不变
+防过拟合：丢掉精确位置信息
+```
+
+### MaxPool vs AvgPool
+
+```
+MaxPool：取最大值，保留最显著特征（最常用）
+AvgPool：取平均值，保留整体信息
+GlobalAvgPool：整个特征图取平均，替代全连接层
+```
+
+---
+
+## 5. Flatten — 展平
+
+```
+池化后：(10, 6, 6)     ← 3D 特征图
+Flatten：(360,)         ← 1D 向量
+
+10 × 6 × 6 = 360，全部拉成一行
+```
+
+为什么需要？
+
+```
+FC 层做的是 y = X @ w + b
+矩阵乘法只能对 1D 或 2D 操作
+3D 的特征图必须先展平
+
+Conv：这里有眼睛，那里有鼻子（保留位置）
+Flatten：眼睛+鼻子+耳朵+...（丢掉位置）
+FC：综合判断 → 这是一只猫
+```
+
+---
+
+## 6. 完整流程 + Shape 变化
+
+### CNN Explainer 的 Tiny VGG
+
+```
+输入：             (3, 64, 64)     RGB 图片
+Conv1 (3→10, 3×3)：(10, 62, 62)   10个卷积核，无padding
+ReLU：             (10, 62, 62)    负数变0
+MaxPool 2×2：      (10, 31, 31)    尺寸减半
+Conv2 (10→10, 3×3)：(10, 29, 29)  继续提取特征
+ReLU：             (10, 29, 29)
+MaxPool 2×2：      (10, 14, 14)    尺寸再减半
+Flatten：          (1960,)         10×14×14
+FC：               (10,)           10个类别
+Softmax：          (10,)           概率
+```
+
+### 通用模式
+
+```
+输入图像
+  ↓
+[Conv → ReLU → Pool] × 几次    ← 提取特征，尺寸逐渐变小
+  ↓                               通道逐渐变多
+Flatten                          ← 展平
+  ↓
+[FC → ReLU] × 几次              ← 分类
+  ↓
+FC → Softmax                     ← 输出概率
+```
+
+尺寸和通道的变化规律：
+
+```
+尺寸：64 → 31 → 14 → ...     越来越小（Pool 缩小）
+通道：3 → 10 → 10 → ...      越来越多（Conv 增加）
+
+浅层：尺寸大，通道少 → 简单特征（边缘、纹理）
+深层：尺寸小，通道多 → 复杂特征（眼睛、脸）
+```
+
+---
+
+## 7. 感受野（Receptive Field）
+
+输出的一个像素能"看到"输入的多大区域。
+
+```
+一层 3×3 卷积 → 感受野 3×3
+两层 3×3 卷积 → 感受野 5×5
+三层 3×3 卷积 → 感受野 7×7
+
+每加一层 3×3，感受野 +2
+```
+
+```
+第二层输出：  [1]              ← 1个像素
+第一层输出：  [x, x, x]        ← 看了3个
+原始输入：   [o, o, o, o, o]   ← 实际覆盖了5个
+              ───────────
+              感受野 = 5
+```
+
+MaxPool 让感受野翻倍：
+
+```
+Conv 3×3 → 感受野 3
+Pool 2×2 → 感受野 6     ← 翻倍
+Conv 3×3 → 感受野 8
+Pool 2×2 → 感受野 16    ← 又翻倍
+```
+
+### 为什么用 3×3 代替 7×7（VGG 的设计）
+
+```
+一个 7×7 卷积核：感受野 7×7，参数 49
+三个 3×3 卷积核：感受野 7×7，参数 27，还多 3 次 ReLU
+
+同样的感受野，参数更少，非线性更强
+```
+
+---
+
+## 8. 参数数量计算（面试常考）
+
+```
+Conv 层：
+  参数 = kernel_h × kernel_w × 输入通道 × 输出通道 + bias
+  
+  Conv2d(3, 16, 3)：  3×3×3×16 + 16 = 448
+  Conv2d(16, 32, 3)： 3×3×16×32 + 32 = 4640
+
+FC 层：
+  参数 = 输入 × 输出 + bias
+  
+  Linear(2048, 128)： 2048×128 + 128 = 262,272
+
+注意：FC 层参数远多于 Conv 层
+```
+
+---
+
+## 9. 常用技巧
+
+```
+Batch Normalization：Conv 和 ReLU 之间，标准化输出，训练更稳定
+Dropout：随机丢掉一些神经元，防过拟合
+Data Augmentation：翻转、旋转、裁剪图片，增加数据量
+Transfer Learning：用预训练模型（ResNet），只训练最后几层
+```
+
+---
+
+## 10. 经典网络
+
+```
+LeNet (1998)：     最早的 CNN，手写数字识别
+AlexNet (2012)：   CNN 崛起，ImageNet 冠军，用了 ReLU 和 Dropout
+VGG (2014)：       更深，全用 3×3 卷积
+GoogLeNet (2014)： Inception 模块，不同大小卷积并行
+ResNet (2015)：    残差连接，能训练 152 层
+```
+
+### ResNet 残差连接（最重要）
+
+```
+普通：x → [Conv → Conv] → 输出
+ResNet：x → [Conv → Conv] + x → 输出
+                            ↑
+                        跳跃连接
+
+解决深网络梯度消失：梯度可以通过跳跃连接直接传回去
+```
+
+---
+
+## 11. PyTorch 实现
+
+### 各组件写法
+
+```python
+import torch.nn as nn
+
+nn.Conv2d(3, 16, kernel_size=3, padding=1, stride=1)   # 卷积
+nn.MaxPool2d(2, 2)                                       # 池化
+nn.ReLU()                                                # 激活
+x.view(x.size(0), -1)                                    # 展平
+nn.Linear(2048, 128)                                     # 全连接
+```
+
+### 完整 CNN
+
+```python
+class MyCNN(nn.Module):
+    def __init__(self, num_classes=10):
+        super().__init__()
+        self.conv1 = nn.Conv2d(3, 16, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(16, 32, kernel_size=3, padding=1)
+        self.pool = nn.MaxPool2d(2, 2)
+        self.relu = nn.ReLU()
+        self.fc1 = nn.Linear(32 * 8 * 8, 128)
+        self.fc2 = nn.Linear(128, num_classes)
+
+    def forward(self, x):                          # (batch, 3, 32, 32)
+        x = self.pool(self.relu(self.conv1(x)))    # (batch, 16, 16, 16)
+        x = self.pool(self.relu(self.conv2(x)))    # (batch, 32, 8, 8)
+        x = x.view(x.size(0), -1)                  # (batch, 2048)
+        x = self.relu(self.fc1(x))                  # (batch, 128)
+        x = self.fc2(x)                             # (batch, 10)
+        return x
+```
+
+### 训练循环
+
+```python
+model = MyCNN(num_classes=10)
+criterion = nn.CrossEntropyLoss()              # 多分类用 CE
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+
+for epoch in range(10):
+    for batch_X, batch_y in train_loader:
+        y_pred = model(batch_X)                # 前向传播
+        loss = criterion(y_pred, batch_y)      # 算损失
+
+        optimizer.zero_grad()                  # 清空梯度
+        loss.backward()                        # 反向传播
+        optimizer.step()                       # 更新参数
+```
+
+### PyTorch vs TensorFlow 输入格式
+
+```
+PyTorch：    (batch, C, H, W)    通道在前
+TensorFlow： (batch, H, W, C)    通道在后
+```
+
+---
+
+## 12. 面试高频问答
+
+**Q1: 1×1 卷积有什么用？**
+不改变空间尺寸，只改变通道数。用来升维/降维，减少计算量。
+
+**Q2: 为什么用 3×3 不用 7×7？**
+三个 3×3 感受野 = 一个 7×7，但参数更少（27 vs 49），非线性更多。
+
+**Q3: MaxPool 有参数吗？**
+没有，只是取最大值，不需要学习。
+
+**Q4: CNN 能处理文本吗？**
+能，1D 卷积滑过词向量序列（TextCNN），但现在文本主流用 Transformer。
+
+**Q5: 感受野是什么？**
+输出一个像素能看到的输入区域大小。层越深感受野越大。
+
+**Q6: Batch Normalization 放哪？**
+通常 Conv → BatchNorm → ReLU。标准化每层输出，训练更稳定。
+
+**Q7: CNN 和 Transformer 的区别？**
+CNN 看局部（卷积核范围内），Transformer 看全局（自注意力）。ViT 正在用 Transformer 替代 CNN。

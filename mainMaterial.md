@@ -1,6 +1,46 @@
 ## 1 Two Sum
 
 ## 49 Group Anagrams
+
+**核心思路：** 找一个 key 让所有 anagram 映射到同一组。
+
+### 方法一：排序法 O(n·k log k)
+
+```python
+def groupAnagrams(self, strs):
+    group = defaultdict(list)
+    for s in strs:
+        key = "".join(sorted(s))
+        group[key].append(s)
+    return list(group.values())
+```
+
+### 方法二：字符计数法 O(n·k)
+
+```python
+def groupAnagrams(self, strs):
+    group = defaultdict(list)
+    for s in strs:
+        count = [0] * 26
+        for c in s:
+            count[ord(c) - ord('a')] += 1
+        group[tuple(count)].append(s)
+    return list(group.values())
+```
+
+用 26 位计数 tuple 作 key，"eat" 和 "tea" 都得到 `(1,0,0,0,1,...,1,...,0)`。
+
+### 方法三：质数映射法 O(n·k)
+
+每个字母映射一个质数，乘积作 key（质因数分解唯一）。缺点：字符串长时大整数变慢。
+
+| 方法 | 时间 | 优点 | 缺点 |
+|------|------|------|------|
+| 排序 | O(n·k log k) | 简洁易读 | 排序开销 |
+| 字符计数 | O(n·k) | 理论最优 | key 较长 |
+| 质数映射 | O(n·k) | key 是单整数 | 大整数溢出 |
+
+
 ## 217 Contains Duplicate
 ## 347 Top K Frequent Elements
 ## 238 Product of Array Except Self
@@ -1278,8 +1318,126 @@ class Solution:
 ## 5 Longest Palindromic Substring
 ## 647 Palindromic Substrings
 ## 91 Decode Ways
+### 1. dp 数组含义
+
+`dp[i]` = 前 i 个字符的解码方法总数
+
+### 2. 递推公式（两个 if，不是 if-elif）
+
+```python
+if s[i-1] != '0':            # 单独解码第 i 个字符
+    dp[i] += dp[i-1]
+if 10 <= int(s[i-2:i]) <= 26:  # 和前一个字符组合解码
+    dp[i] += dp[i-2]
+```
+
+> **关键：两个 if 互不排斥，可能同时成立，都要检查。**
+> 用 elif 会漏掉两者同时成立的情况。
+
+### 3. 初始化
+
+```python
+if not s or s[0] == '0':  # 提前排除，保证 dp[1]=1 合法
+    return 0
+dp[0] = dp[1] = 1
+```
+
+- `dp[0] = 1`：空串作为递推基础
+- `dp[1] = 1`：首字符已由提前判断保证非 '0'
+
+### 4. 遍历顺序
+
+从左到右，`i` 从 2 到 n（依赖 `dp[i-1]` 和 `dp[i-2]`）
+
+### 5. 举例推导 s = "226"
+
+```
+dp = [1, 1, 0, 0]
+
+i=2: s[1]='2'≠'0' → dp[2]+=dp[1]=1
+     10≤22≤26     → dp[2]+=dp[0]=2  → dp=[1,1,2,0]
+
+i=3: s[2]='6'≠'0' → dp[3]+=dp[2]=2
+     10≤26≤26     → dp[3]+=dp[1]=3  → dp=[1,1,2,3]
+
+结果：3 种（"BBF", "VF", "BZ"）
+```
+
+### 完整代码
+
+```python
+def numDecodings(self, s):
+    if not s or s[0] == '0':
+        return 0
+    n = len(s)
+    dp = [0] * (n + 1)
+    dp[0] = dp[1] = 1
+    for i in range(2, n + 1):
+        if s[i-1] != '0':
+            dp[i] += dp[i-1]
+        if 10 <= int(s[i-2:i]) <= 26:
+            dp[i] += dp[i-2]
+    return dp[n]
+```
 ## 322 Coin Change
 ## 152 Maximum Product Subarray
+
+## 方法一：前后缀积（贪心）
+
+**核心观察：** 最大乘积子数组一定从左端或右端延伸而来，遇到 0 就重置。
+
+```python
+def maxProduct(self, nums):
+    n, res = len(nums), nums[0]
+    prefix = suffix = 0
+    for i in range(n):  # 注意：range(n) 不能少遍历
+        prefix = nums[i] * (prefix or 1)
+        suffix = nums[n - 1 - i] * (suffix or 1)
+        res = max(res, prefix, suffix)
+    return res
+```
+
+### 关键细节
+
+- `prefix or 1`：当 prefix 为 0 时重置为 1，等于从下一个元素重新开始
+- **为什么双向？** 负数个数为奇数时，一个方向会包含多余的负数，另一个方向能避开它
+- 例：`[-2, 3, 4]`，前缀积 -2, -6, -24 全负；后缀积 4, 12, -24 能捕捉到 12
+
+### 易错点
+
+循环必须是 `range(n)`，写成 `range(n-1)` 会导致前缀漏最后一个元素、后缀漏第一个元素。
+
+---
+
+## 方法二：DP（max/min 追踪）
+
+**核心思路：** 每个位置维护当前最大积和最小积，因为负负得正，最小值乘负数可能变最大。
+
+```python
+def maxProduct(self, nums):
+    res = cur_max = cur_min = nums[0]
+    for i in range(1, len(nums)):
+        candidates = (nums[i], nums[i] * cur_max, nums[i] * cur_min)
+        cur_max = max(candidates)
+        cur_min = min(candidates)
+        res = max(res, cur_max)
+    return res
+```
+
+### 为什么要同时追踪 min？
+
+`nums = [2, -1, -2]`：到 -1 时 cur_min=-2，再乘 -2 得 4，这就是最大值。只追踪 max 会丢失这个翻转。
+
+---
+
+## 对比
+
+| | 前后缀积（贪心） | DP（max/min） |
+|---|---|---|
+| 时间 | O(n) | O(n) |
+| 空间 | O(1) | O(1) |
+| 思路 | 最优解一定从某端延伸 | 每步维护最大/最小状态 |
+| 优点 | 代码简洁，不易出错 | 更通用，易推广 |
 ## 300 Longest Increasing Subsequence
 
 ## 62 Unique Paths
