@@ -724,6 +724,181 @@ class Solution:
 ## 230 Kth Smallest in BST
 ## 105 Construct Binary Tree from Preorder and Inorder
 ## 124 Binary Tree Maximum Path Sum
+# Binary Tree Maximum Path Sum — 解题笔记
+
+## 题目核心
+
+给定一棵非空二叉树，找出任意路径的最大路径和。路径可以从任意节点开始、任意节点结束，不一定经过根节点，节点不能重复使用。
+
+## 关键思路
+
+对于每个节点，考虑**以它为拐点（最高点）**的路径。用后序遍历，对每个节点做两件事：
+
+1. **更新全局答案**：左链 + 当前节点 + 右链（完整路径，不往上传）
+2. **向上返回**：当前节点 + max(左链, 右链)（只选一边，给父节点接上）
+
+如果某一边是负数，取 0 不要它。
+
+---
+
+## 树形 DP 五部曲
+
+### 1. dp 数组含义
+
+`dp[node]` = 从该节点出发**往下走**的最大单链和（只走一边）
+
+### 2. 递推公式
+
+```
+dp[node] = node.val + max(dp[left], dp[right], 0)
+```
+
+全局答案在每个节点处额外计算：
+
+```
+max_sum = max(max_sum, node.val + max(dp[left], 0) + max(dp[right], 0))
+```
+
+### 3. 初始化
+
+- 叶子节点：`dp[leaf] = leaf.val`
+- 空节点：`dp[None] = 0`
+
+### 4. 遍历顺序
+
+后序遍历（左 → 右 → 根），先算子树才能算当前节点
+
+### 5. 举例推导
+
+```
+      -10
+      /  \
+     9    20
+         /  \
+        15    7
+```
+
+| 节点 | dp[left] | dp[right] | dp[node] | 拐点路径和 | max_sum |
+|------|----------|-----------|----------|-----------|---------|
+| 9    | 0        | 0         | 9        | 9         | 9       |
+| 15   | 0        | 0         | 15       | 15        | 15      |
+| 7    | 0        | 0         | 7        | 7         | 15      |
+| 20   | 15       | 7         | 35       | 42        | 42      |
+| -10  | 9        | 35        | 25       | 34        | **42**  |
+
+以节点 20 为拐点：15 + 20 + 7 = 42，即最终答案。
+
+---
+
+## 两行 max 的区别
+
+```python
+max_sum[0] = max(max_sum[0], node.val + left + right)  # 第一行
+return node.val + max(left, right)                       # 第二行
+```
+
+**第一行 — 完整路径（更新全局答案）：**
+
+```
+    left
+       \
+      node  ← 拐点，左+右都取
+       /
+    right
+```
+
+以当前节点为拐点，左右都要，这个值只用来更新答案，不往上传。
+
+**第二行 — 单链（返回给父节点）：**
+
+```
+  parent
+    |
+   node  ← 只能带一边
+   / \
+ left  right（二选一）
+```
+
+路径不能分叉，只能选一边给父节点接上。
+
+---
+
+## 代码：递归 DFS（推荐）
+
+```python
+class Solution:
+    def maxPathSum(self, root: Optional[TreeNode]) -> int:
+        max_sum = [float('-inf')]
+
+        def dfs(node):
+            if not node:
+                return 0
+            left = max(dfs(node.left), 0)
+            right = max(dfs(node.right), 0)
+            max_sum[0] = max(max_sum[0], node.val + left + right)
+            return node.val + max(left, right)
+
+        dfs(root)
+        return max_sum[0]
+```
+
+## 代码：显式 DP（迭代后序遍历）
+
+```python
+class Solution:
+    def maxPathSum(self, root: Optional[TreeNode]) -> int:
+        # 后序遍历拿到节点顺序
+        order = []
+        stack = [(root, False)]
+        while stack:
+            node, visited = stack.pop()
+            if not node:
+                continue
+            if visited:
+                order.append(node)
+            else:
+                stack.append((node, True))
+                stack.append((node.right, False))
+                stack.append((node.left, False))
+
+        # 从底往上填 dp 表
+        dp = {}
+        max_sum = float('-inf')
+
+        for node in order:
+            left = max(dp.get(node.left, 0), 0)
+            right = max(dp.get(node.right, 0), 0)
+            max_sum = max(max_sum, node.val + left + right)
+            dp[node] = node.val + max(left, right)
+
+        return max_sum
+```
+
+---
+
+## 递归 vs 显式 DP 对比
+
+| | 递归 DFS | 显式 DP |
+|---|---|---|
+| dp 值存在哪 | 递归返回值 | `dp` 字典 |
+| 遍历顺序 | 递归天然后序 | 手动后序遍历 |
+| 填表方向 | 回溯时自动从底到顶 | 显式从底到顶循环 |
+| 核心逻辑 | 完全一样 | 完全一样 |
+
+递归版本更简洁，面试中推荐使用。
+
+---
+
+## 这题为什么是 Hard
+
+**dp 返回值和最终答案不是同一个东西。** dp 存的是单链和（给父节点用），但答案是拐点路径和（左+根+右），需要一个额外的 `max_sum` 在遍历过程中记录。这个"返回值"和"答案"的分离是这道题最容易搞混的地方。
+
+---
+
+## 复杂度
+
+- **时间**：O(n)，每个节点访问一次
+- **空间**：O(h)，递归栈深度，h 为树高；显式 DP 为 O(n)
 ## 297 Serialize and Deserialize Binary Tree
 
 ## 208 Implement Trie
@@ -1179,6 +1354,132 @@ def backtrack_path(位置, 路径状态, 目标):
 ## 200 Number of Islands
 ## 695 Max Area of Island
 ## 133 Clone Graph
+
+## 题目核心
+
+给定一个无向连通图中的一个节点，返回该图的**深拷贝**。图中有环，必须防止无限循环。
+
+## 关键思路
+
+用一个 **`lookup` 哈希表**（原节点 → 克隆节点）同时解决两个问题：
+
+1. **防止重复访问**：已经克隆过的节点不再重复创建
+2. **映射关系**：随时能通过原节点找到对应的克隆节点来建立邻居关系
+
+---
+
+## BFS 解法
+
+```python
+def cloneGraph(self, node):
+    if not node:
+        return None
+    lookup = {}
+    clone = Node(node.val, [])
+    lookup[node] = clone
+    q = deque([node])
+    while q:
+        tmp = q.popleft()
+        for n in tmp.neighbors:
+            if n not in lookup:          # 没克隆过 → 创建 + 入队
+                lookup[n] = Node(n.val, [])
+                q.append(n)
+            lookup[tmp].neighbors.append(lookup[n])  # 在 if 外面，总是执行
+    return clone
+```
+
+**流程（以 1-2-3-4 环为例）：**
+
+| 步骤 | 取出 | 处理邻居 | 队列 | lookup |
+|------|------|----------|------|--------|
+| 初始 | — | 创建 1' | [1] | {1} |
+| 1 | 1 | 2 不在→创建 2'，4 不在→创建 4' | [2, 4] | {1,2,4} |
+| 2 | 2 | 1 已在→直接连，3 不在→创建 3' | [4, 3] | {1,2,3,4} |
+| 3 | 4 | 1 已在→连，3 已在→连 | [3] | {1,2,3,4} |
+| 4 | 3 | 2 已在→连，4 已在→连 | [] | {1,2,3,4} |
+
+---
+
+## DFS 解法
+
+```python
+def cloneGraph(self, node):
+    if not node:
+        return None
+    lookup = {}
+
+    def dfs(node):
+        if node in lookup:
+            return lookup[node]
+        copy = Node(node.val, [])
+        lookup[node] = copy
+        for nei in node.neighbors:
+            copy.neighbors.append(dfs(nei))
+        return copy
+
+    return dfs(node)
+```
+
+**递归过程：**
+
+```
+dfs(1) → 创建 1'
+  dfs(2) → 创建 2'
+    dfs(1) → 已在 lookup，返回 1'  ← 防止无限递归
+    dfs(3) → 创建 3'
+      dfs(2) → 已在，返回 2'
+      dfs(4) → 创建 4'
+        dfs(1) → 已在，返回 1'
+        dfs(3) → 已在，返回 3'
+        → 4' 邻居 = [1', 3']
+      → 3' 邻居 = [2', 4']
+    → 2' 邻居 = [1', 3']
+  dfs(4) → 已在，返回 4'
+  → 1' 邻居 = [2', 4']
+```
+
+---
+
+## BFS vs DFS 的 if 判断区别
+
+两者都是**每个邻居都要加到邻居列表**，但判断重复的位置不同：
+
+**BFS**：`if` 只控制"要不要创建新克隆 + 入队"，`append` 在 if 外面，总是执行。
+
+```python
+if n not in lookup:         # 只控制创建和入队
+    lookup[n] = Node(...)
+    q.append(n)
+lookup[tmp].neighbors.append(lookup[n])  # 不管有没有，都连
+```
+
+**DFS**：判断藏在递归入口，`dfs(nei)` 总会返回正确的克隆节点（新建的或已有的），所以外层直接 append，不需要 if。
+
+```python
+for nei in node.neighbors:
+    copy.neighbors.append(dfs(nei))  # dfs 内部处理了重复
+```
+
+> 如果 DFS 中加了 `if nei not in lookup`，会导致已访问的邻居被跳过，克隆图的边会丢失。
+
+---
+
+## 常见 Bug
+
+| Bug | 后果 |
+|-----|------|
+| `deque(node)` 而非 `deque([node])` | 尝试迭代 Node 对象，报错 |
+| 变量名不一致（`q` vs `queue`） | NameError |
+| `lookup[tmp].neighbors.append(lookup[tmp])` | 把自己加成自己的邻居 |
+| 忘记 `return clone` | 函数返回 None |
+| DFS 中多加 `if nei not in lookup` | 丢失边，图不完整 |
+
+---
+
+## 复杂度
+
+- **时间**：O(N + E)，每个节点和边各处理一次
+- **空间**：O(N)，lookup 存储所有节点的映射
 ## 417 Pacific Atlantic Water Flow
 ## 🔹 Pattern
 **反向DFS / 图遍历**
