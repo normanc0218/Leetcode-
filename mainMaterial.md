@@ -705,6 +705,234 @@ class Solution:
 ## 206 Reverse Linked List
 ## 21 Merge Two Sorted Lists
 ## 143 Reorder List
+## 题目核心
+
+给定链表 `L0 → L1 → ... → Ln-1 → Ln`，重排为 `L0 → Ln → L1 → Ln-1 → L2 → Ln-2 → ...`
+
+就是把链表的头和尾交替拼接。
+
+示例：`1 → 2 → 3 → 4 → 5` 变成 `1 → 5 → 2 → 4 → 3`
+
+---
+
+## 整体思路：四步走
+
+不能用数组（要求原地操作），所以拆成四个经典链表操作：
+
+```
+原始：1 → 2 → 3 → 4 → 5
+
+第一步 找中点：  [1 → 2 → 3] [4 → 5]
+第二步 断开：    1 → 2 → 3    4 → 5
+第三步 翻转后半：1 → 2 → 3    5 → 4
+第四步 交替连接：1 → 5 → 2 → 4 → 3
+```
+
+---
+
+## 第一步：快慢指针找中点
+
+### 技巧：快慢指针
+
+slow 走一步，fast 走两步。fast 到底时，slow 正好在中间。
+
+```python
+slow = head
+fast = head
+while fast and fast.next:
+    slow = slow.next
+    fast = fast.next.next
+```
+
+### 为什么 `while fast and fast.next`
+
+两个条件缺一不可：
+
+- `fast`：防止偶数长度时 fast 已经是 None
+- `fast.next`：防止奇数长度时 fast 在最后一个节点，再走就越界
+
+### slow 停在哪
+
+| 链表长度 | 示例 | slow 停在 |
+|----------|------|-----------|
+| 奇数 (5) | 1→2→3→4→5 | 3（正中间） |
+| 偶数 (4) | 1→2→3→4 | 2（中间偏左） |
+
+两种情况下，`slow.next` 都是后半段的起点。
+
+---
+
+## 第二步：断开
+
+```python
+second_part = slow.next
+slow.next = None
+```
+
+把链表一刀切成两半：
+
+```
+前半：1 → 2 → 3 → None
+后半：4 → 5 → None
+```
+
+`slow.next = None` 很关键，不断开的话前半段还连着后半段，最后会成环。
+
+---
+
+## 第三步：翻转后半段
+
+### 技巧：三指针翻转
+
+```python
+prev = None
+while second_part:
+    nxt = second_part.next      # 先存下一个
+    second_part.next = prev     # 指针反转
+    prev = second_part          # prev 前进
+    second_part = nxt           # curr 前进
+```
+
+### 逐步模拟
+
+翻转 `4 → 5 → None`：
+
+```
+初始：prev=None, curr=4
+
+第一轮：
+  nxt = 5
+  4.next = None    (4 → None)
+  prev = 4
+  curr = 5
+
+第二轮：
+  nxt = None
+  5.next = 4       (5 → 4)
+  prev = 5
+  curr = None
+
+结束：prev = 5，即翻转后的头 → 5 → 4 → None
+```
+
+### 为什么需要 nxt 变量
+
+因为 `second_part.next = prev` 会把原来的 next 覆盖掉。如果不提前存，就找不到下一个节点了，链表就断了。
+
+---
+
+## 第四步：交替连接
+
+### 技巧：双指针交替穿插
+
+```python
+first = head        # 前半段：1 → 2 → 3
+second = prev       # 后半段：5 → 4
+
+while second:
+    tmp1 = first.next       # 存好下一步
+    tmp2 = second.next
+    first.next = second     # first 指向 second
+    second.next = tmp1      # second 指向 first 的下一个
+    first = tmp1            # 两个指针各前进一步
+    second = tmp2
+```
+
+### 逐步模拟
+
+```
+初始：
+  first: 1 → 2 → 3
+  second: 5 → 4
+
+第一轮：
+  tmp1 = 2, tmp2 = 4
+  1.next = 5      → 1 → 5
+  5.next = 2      → 1 → 5 → 2 → 3
+  first = 2, second = 4
+
+第二轮：
+  tmp1 = 3, tmp2 = None
+  2.next = 4      → 1 → 5 → 2 → 4
+  4.next = 3      → 1 → 5 → 2 → 4 → 3
+  first = 3, second = None
+
+second = None → 结束
+
+结果：1 → 5 → 2 → 4 → 3
+```
+
+### 为什么 `while second` 而不是 `while first`
+
+后半段长度 ≤ 前半段。奇数长度时前半段多一个节点（中间那个），后半段先走完，所以用 second 控制循环。
+
+### 为什么需要 tmp1 和 tmp2
+
+和翻转一样的道理：修改 next 指针会破坏原有链接，必须先把后续节点存起来。
+
+---
+
+## 完整代码
+
+```python
+class Solution:
+    def reorderList(self, head: Optional[ListNode]) -> None:
+        # 第一步：快慢指针找中点
+        slow = head
+        fast = head
+        while fast and fast.next:
+            slow = slow.next
+            fast = fast.next.next
+
+        # 第二步：断开
+        second_part = slow.next
+        slow.next = None
+
+        # 第三步：翻转后半段
+        prev = None
+        while second_part:
+            nxt = second_part.next
+            second_part.next = prev
+            prev = second_part
+            second_part = nxt
+
+        # 第四步：交替连接
+        first = head
+        second = prev
+        while second:
+            tmp1 = first.next
+            tmp2 = second.next
+            first.next = second
+            second.next = tmp1
+            first = tmp1
+            second = tmp2
+```
+
+---
+
+## 链表技巧总结
+
+这道题集合了四个经典链表技巧，很多题都会复用：
+
+| 技巧 | 本题用途 | 其他常见题目 |
+|------|---------|-------------|
+| 快慢指针 | 找中点 | 环检测、找环入口、判断回文链表 |
+| 断开链表 | 分成两半 | 合并排序链表、分割链表 |
+| 三指针翻转 | 翻转后半段 | 反转链表、K 个一组翻转 |
+| 双指针穿插 | 交替连接 | 合并两个有序链表 |
+
+### 通用注意点
+
+- **改 next 之前先存**：任何时候修改 `.next`，都要先把原来的下一个节点存到临时变量里
+- **断开防成环**：拆分链表时一定要把前半段的尾部指向 None
+- **循环条件想清楚**：用长度短的那一段控制循环，防止空指针
+
+---
+
+## 复杂度
+
+- **时间**：O(n)，每一步都是 O(n)，总共四步
+- **空间**：O(1)，只用了几个指针变量，原地操作
 ## 19 Remove Nth Node From End
 ## 2 Add Two Numbers
 ## 141 Linked List Cycle
@@ -902,6 +1130,158 @@ class Solution:
 ## 297 Serialize and Deserialize Binary Tree
 
 ## 208 Implement Trie
+
+## 题目核心
+
+实现一个前缀树，支持三个操作：插入单词、搜索完整单词、判断是否存在某前缀。
+
+---
+
+## Trie 是什么
+
+Trie 是一棵多叉树，每条边代表一个字符，从根到某个节点的路径拼起来就是一个前缀。
+
+插入 "apple" 和 "app" 后的结构：
+
+```
+        root
+         |
+         a
+         |
+         p
+         |
+         p  ← is_end=True ("app")
+         |
+         l
+         |
+         e  ← is_end=True ("apple")
+```
+
+---
+
+## 节点设计
+
+每个节点两样东西：
+
+- `children`：字典，key 是字符，value 是子节点
+- `is_end`：标记该节点是否是某个单词的结尾
+
+```python
+class TrieNode:
+    def __init__(self):
+        self.children = {}
+        self.is_end = False
+```
+
+---
+
+## 三个操作的逻辑
+
+### insert — 插入单词
+
+逐字符往下走，没有路就创建新节点，最后标记 `is_end = True`。
+
+```python
+def insert(self, word):
+    node = self.root
+    for w in word:
+        if w not in node.children:
+            node.children[w] = TrieNode()
+        node = node.children[w]
+    node.is_end = True
+```
+
+### search — 搜索完整单词
+
+逐字符往下走，走不通返回 False，走完了检查 `is_end`。
+
+```python
+def search(self, word):
+    node = self.root
+    for w in word:
+        if w not in node.children:
+            return False
+        node = node.children[w]
+    return node.is_end  # 不是 return True！
+```
+
+### startsWith — 判断前缀是否存在
+
+逐字符往下走，走不通返回 False，走完了直接返回 True（不需要检查 is_end）。
+
+```python
+def startsWith(self, prefix):
+    node = self.root
+    for w in prefix:
+        if w not in node.children:
+            return False
+        node = node.children[w]
+    return True
+```
+
+---
+
+## search vs startsWith 的区别
+
+这是这道题最容易犯的错：
+
+| | search("app") | startsWith("app") |
+|---|---|---|
+| 只插入了 "apple" | **False** | **True** |
+| 区别 | 要求 is_end=True | 只要路径存在就行 |
+
+`search` 最后返回 `node.is_end`，`startsWith` 最后返回 `True`。如果 search 也返回 True，那它就和 startsWith 一模一样了，无法区分"完整单词"和"前缀"。
+
+---
+
+## 完整代码
+
+```python
+class TrieNode:
+    def __init__(self):
+        self.children = {}
+        self.is_end = False
+
+class Trie:
+    def __init__(self):
+        self.root = TrieNode()
+
+    def insert(self, word: str) -> None:
+        node = self.root
+        for w in word:
+            if w not in node.children:
+                node.children[w] = TrieNode()
+            node = node.children[w]
+        node.is_end = True
+
+    def search(self, word: str) -> bool:
+        node = self.root
+        for w in word:
+            if w not in node.children:
+                return False
+            node = node.children[w]
+        return node.is_end
+
+    def startsWith(self, prefix: str) -> bool:
+        node = self.root
+        for w in prefix:
+            if w not in node.children:
+                return False
+            node = node.children[w]
+        return True
+```
+
+---
+
+## 复杂度
+
+| 操作 | 时间 | 空间 |
+|------|------|------|
+| insert | O(m) | O(m)，m 为单词长度 |
+| search | O(m) | O(1) |
+| startsWith | O(m) | O(1) |
+
+整棵树的空间最坏 O(总字符数)，但公共前缀会共享节点，实际远小于此。
 ## 211 Design Add and Search Words
 ## 212 Word Search II
 
@@ -1603,6 +1983,208 @@ class Solution:
 ## 130 Surrounded Regions
 ## 994 Rotting Oranges
 ## 207 Course Schedule
+## 题目核心
+
+给定 n 门课和先修关系，判断能否修完所有课。本质就是**有向图判断是否有环**。
+
+---
+
+## 建图
+
+`prerequisites = [[course, pre]]` 意思是"先上 pre 才能上 course"。
+
+建边方向：**pre → course**（从先修课指向后续课）。
+
+```python
+graph = defaultdict(list)
+for course, pre in prerequisites:
+    graph[pre].append(course)
+```
+
+示例 `[[1,0], [2,0], [3,1]]`：
+
+```
+课程0 → 课程1 → 课程3
+  \
+   → 课程2
+```
+
+graph = {0: [1, 2], 1: [3]}
+
+---
+
+## 解法一：DFS 三色标记法
+
+### 核心思想
+
+从每个节点出发做 DFS，如果走着走着回到了"正在访问"的节点，说明有环。
+
+### 三个状态
+
+| state | 含义 | 遇到时的行为 |
+|-------|------|-------------|
+| 0 | 未访问 | 开始检查 |
+| 1 | 访问中（在当前路径上） | **有环！** 返回 True |
+| 2 | 已完成（确认安全） | 跳过，返回 False（剪枝） |
+
+### 为什么需要 state=2
+
+避免重复检查。比如：
+
+```
+0 → 1 → 3
+0 → 2 → 3
+```
+
+检查完 0→1→3 后，3 标记为 2。走 0→2→3 时看到 3 是 2，直接跳过，不用再查一遍。没有这个剪枝，大图会超时。
+
+### 代码
+
+```python
+class Solution:
+    def canFinish(self, numCourses, prerequisites):
+        graph = defaultdict(list)
+        for course, pre in prerequisites:
+            graph[pre].append(course)
+
+        # 0=未访问, 1=访问中, 2=已完成
+        state = [0] * numCourses
+
+        def has_cycle(node):
+            if state[node] == 1:    # 回到了正在走的路径 → 有环
+                return True
+            if state[node] == 2:    # 之前确认过安全 → 跳过
+                return False
+            state[node] = 1         # 标记为"正在访问"
+            for nei in graph[node]:
+                if has_cycle(nei):
+                    return True
+            state[node] = 2         # 所有后续都安全，标记完成
+            return False
+
+        for i in range(numCourses):
+            if has_cycle(i):
+                return False
+        return True
+```
+
+### DFS 模拟过程
+
+图：`0 → 1 → 3, 0 → 2 → 3`
+
+```
+has_cycle(0): state[0]=1
+  has_cycle(1): state[1]=1
+    has_cycle(3): state[3]=1
+      无邻居 → state[3]=2, 返回 False
+    → state[1]=2, 返回 False
+  has_cycle(2): state[2]=1
+    has_cycle(3): state[3]==2, 直接返回 False  ← 剪枝！
+    → state[2]=2, 返回 False
+  → state[0]=2, 返回 False
+
+has_cycle(1): state[1]==2, 跳过  ← 剪枝！
+has_cycle(2): state[2]==2, 跳过  ← 剪枝！
+has_cycle(3): state[3]==2, 跳过  ← 剪枝！
+
+全部无环 → 返回 True
+```
+
+---
+
+## 解法二：BFS 拓扑排序（Kahn 算法）
+
+### 核心思想
+
+不断把"没有先修课"（入度为 0）的课拿掉，看最后能不能全部拿完。拿不完说明剩下的课互相依赖（有环）。
+
+### indegree（入度）是什么
+
+入度 = 指向该节点的边数 = 这门课有几门先修课还没上。
+
+```
+0 → 1 → 3
+0 → 2 → 3
+```
+
+| 节点 | 入度 | 含义 |
+|------|------|------|
+| 0 | 0 | 没有先修课，可以直接上 |
+| 1 | 1 | 需要先上 0 |
+| 2 | 1 | 需要先上 0 |
+| 3 | 2 | 需要先上 1 和 2 |
+
+### 代码
+
+```python
+class Solution:
+    def canFinish(self, numCourses, prerequisites):
+        graph = defaultdict(list)
+        indegree = [0] * numCourses
+
+        for course, pre in prerequisites:
+            graph[pre].append(course)
+            indegree[course] += 1
+
+        # 入度为 0 的节点入队（没有先修课，可以直接上）
+        q = deque([i for i in range(numCourses) if indegree[i] == 0])
+        count = 0
+
+        while q:
+            node = q.popleft()
+            count += 1
+            for nei in graph[node]:
+                indegree[nei] -= 1      # 上完 node，后续课的先修要求少了一门
+                if indegree[nei] == 0:   # 所有先修课都上完了 → 入队
+                    q.append(nei)
+
+        return count == numCourses       # 全部上完 → 无环
+```
+
+### BFS 模拟过程
+
+图：`0 → 1 → 3, 0 → 2 → 3`
+
+初始入度：`[0, 1, 1, 2]`，入度为 0 的：`q = [0]`
+
+| 步骤 | 取出 | 处理 | 入度变化 | 队列 | count |
+|------|------|------|---------|------|-------|
+| 1 | 0 | 1 的入度 -1, 2 的入度 -1 | [0,0,0,2] | [1,2] | 1 |
+| 2 | 1 | 3 的入度 -1 | [0,0,0,1] | [2] | 2 |
+| 3 | 2 | 3 的入度 -1 | [0,0,0,0] | [3] | 3 |
+| 4 | 3 | 无后续 | [0,0,0,0] | [] | 4 |
+
+count=4 == numCourses=4 → 返回 True
+
+### 有环的情况
+
+```
+0 → 1 → 2 → 0（环）
+```
+
+入度：`[1, 1, 1]`，没有入度为 0 的节点，队列一开始就空，count=0 ≠ 3 → 返回 False。
+
+---
+
+## 两种解法对比
+
+| | DFS 三色标记 | BFS Kahn 算法 |
+|---|---|---|
+| 核心问题 | 能不能找到环？ | 能不能全部拿完？ |
+| 判断方式 | 遇到 state=1 → 有环 | count ≠ n → 有环 |
+| 额外数据 | state 数组（3 种状态） | indegree 数组 |
+| 时间 | O(V + E) | O(V + E) |
+| 空间 | O(V + E) | O(V + E) |
+| 优势 | 代码简短 | 直觉清晰，能输出上课顺序 |
+| 延伸 | 适合判环 | 适合拓扑排序（Course Schedule II） |
+
+---
+
+## 记忆口诀
+
+**DFS**：走到标记 1 就是环，走完标记 2 就安全。
+
+**BFS**：入度为 0 就能上，上完减邻居，最后数一数。
 ## 210 Course Schedule II
 ## 684 Redundant Connection
 
