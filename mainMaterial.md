@@ -2196,6 +2196,144 @@ count=4 == numCourses=4 → 返回 True
 ## 198 House Robber
 ## 213 House Robber II
 ## 5 Longest Palindromic Substring
+## 题目核心
+
+给定字符串 s，返回其中**最长的回文子串**。
+
+示例：`"babad"` → `"bab"` 或 `"aba"`
+
+---
+
+## 和 Palindromic Substrings 的关系
+
+两道题的核心逻辑完全一样，只是统计目标不同：
+
+| 题目 | 目标 | 核心区别 |
+|------|------|---------|
+| Palindromic Substrings | 数回文子串个数 | count += 1 |
+| Longest Palindromic Substring | 找最长回文子串 | 记录最长的起点和长度 |
+
+---
+
+## 解法一：DP
+
+### dp 含义
+
+`dp[i][j]` = s[i..j] 是否是回文
+
+### 递推
+
+当 `s[i] == s[j]` 时：
+
+- `j - i <= 1`：长度 1 或 2，直接是回文
+- `j - i >= 2`：看 `dp[i+1][j-1]`
+
+每次发现回文时，和当前最长的比较，更长就更新。
+
+### 代码
+
+```python
+class Solution:
+    def longestPalindrome(self, s: str) -> str:
+        n = len(s)
+        dp = [[False] * n for _ in range(n)]
+        res_idx = 0
+        res_len = 0
+
+        for i in range(n - 1, -1, -1):       # 注意：n-1 不是 n
+            for j in range(i, n):
+                if s[i] == s[j] and (j - i <= 1 or dp[i + 1][j - 1]):
+                    dp[i][j] = True
+                    if j - i + 1 > res_len:   # 比当前最长更长就更新
+                        res_idx = i
+                        res_len = j - i + 1
+
+        return s[res_idx:res_idx + res_len]
+```
+
+### 模拟过程
+
+s = `"babad"`，n = 5
+
+| i | j | s[i]==s[j]? | 条件 | dp[i][j] | 更新最长？ |
+|---|---|-------------|------|----------|-----------|
+| 4 | 4 | d==d ✓ | j-i=0 | True | "d" len=1 |
+| 3 | 3 | a==a ✓ | j-i=0 | True | — |
+| 3 | 4 | a==d ✗ | — | False | — |
+| 2 | 2 | b==b ✓ | j-i=0 | True | — |
+| 2 | 3 | b==a ✗ | — | False | — |
+| 2 | 4 | b==d ✗ | — | False | — |
+| 1 | 1 | a==a ✓ | j-i=0 | True | — |
+| 1 | 2 | a==b ✗ | — | False | — |
+| 1 | 3 | a==a ✓ | dp[2][2]=True | True | **"aba" len=3** |
+| 1 | 4 | a==d ✗ | — | False | — |
+| 0 | 0 | b==b ✓ | j-i=0 | True | — |
+| 0 | 1 | b==a ✗ | — | False | — |
+| 0 | 2 | b==b ✓ | dp[1][1]=True | True | "bab" len=3（不更新，等长） |
+| 0 | 3 | b==a ✗ | — | False | — |
+| 0 | 4 | b==d ✗ | — | False | — |
+
+结果：`s[1:4]` = `"aba"`
+
+---
+
+## 解法二：中心扩展
+
+```python
+class Solution:
+    def longestPalindrome(self, s: str) -> str:
+        res = ""
+
+        def expand(l, r):
+            while l >= 0 and r < len(s) and s[l] == s[r]:
+                l -= 1
+                r += 1
+            return s[l + 1:r]    # 退出时 l 和 r 各多走了一步
+
+        for i in range(len(s)):
+            odd = expand(i, i)        # 奇数长度
+            even = expand(i, i + 1)   # 偶数长度
+            longer = odd if len(odd) > len(even) else even
+            if len(longer) > len(res):
+                res = longer
+
+        return res
+```
+
+### 注意 `s[l+1:r]`
+
+退出 while 时，l 和 r 已经各多走了一步（不满足条件的那一步），所以实际回文范围是 `[l+1, r-1]`，切片写成 `s[l+1:r]`。
+
+---
+
+## 两种解法对比
+
+| | DP | 中心扩展 |
+|---|---|---|
+| 时间 | O(n²) | O(n²) |
+| 空间 | O(n²) | O(1) |
+| 代码量 | 较长 | 较短 |
+| 优势 | dp 表可复用 | 省空间，直观 |
+
+---
+
+## 常见 Bug
+
+| Bug | 后果 |
+|-----|------|
+| `range(n, -1, -1)` 从 n 开始 | s[n] 索引越界 |
+| 中心扩展返回 `s[l:r]` 而非 `s[l+1:r]` | 多包含了不匹配的字符 |
+| 只做奇数或偶数扩展 | 漏掉一半情况 |
+| 更新最长时用 `>=` 而非 `>` | 不影响正确性但多做无用更新 |
+
+---
+
+## 复杂度
+
+| | 时间 | 空间 |
+|---|---|---|
+| DP | O(n²) | O(n²) |
+| 中心扩展 | O(n²) | O(1) |
 ## 647 Palindromic Substrings
 ## 题目核心
 
