@@ -340,9 +340,6 @@ O(n) 轻松搞定！
 ## 271 Encode and Decode Strings
 
 ## 125 Valid Palindrome
-# 📘 125. Valid Palindrome
-
----
 
 ## 🔹 Pattern
 **双指针 (Two Pointers)**
@@ -2200,6 +2197,177 @@ count=4 == numCourses=4 → 返回 True
 ## 213 House Robber II
 ## 5 Longest Palindromic Substring
 ## 647 Palindromic Substrings
+## 题目核心
+
+给定字符串 s，返回其中**回文子串的数量**。单个字符也算回文。
+
+示例：`"aaa"` → 6 个回文子串：`a, a, a, aa, aa, aaa`
+
+---
+
+## 解法一：中心扩展法（推荐）
+
+### 核心思想
+
+每个回文都有一个中心。从每个可能的中心出发，向两边扩展，只要两边相等就继续。
+
+中心有两种：
+
+```
+奇数长度：中心是一个字符    "aba" → 从 b 往两边扩
+偶数长度：中心是两个字符之间  "abba" → 从 bb 往两边扩
+```
+
+### 代码
+
+```python
+class Solution:
+    def countSubstrings(self, s: str) -> int:
+        def expand(l, r):
+            count = 0
+            while l >= 0 and r < len(s) and s[l] == s[r]:
+                count += 1
+                l -= 1
+                r += 1
+            return count
+
+        result = 0
+        for i in range(len(s)):
+            result += expand(i, i)      # 奇数长度，中心是 s[i]
+            result += expand(i, i + 1)  # 偶数长度，中心是 s[i] 和 s[i+1] 之间
+        return result
+```
+
+### 模拟过程
+
+s = `"aab"`
+
+| 中心 | expand(i,i) 奇数 | expand(i,i+1) 偶数 | 找到的回文 |
+|------|------------------|--------------------|-----------| 
+| i=0 | "a" → 1 | "aa" → 1 | a, aa |
+| i=1 | "a" → 1 | "ab" 不等 → 0 | a |
+| i=2 | "b" → 1 | 越界 → 0 | b |
+
+总计：1 + 1 + 1 + 0 + 1 + 0 = **4**
+
+### 为什么需要两次 expand
+
+一个回文要么是奇数长度要么是偶数长度，中心不同：
+
+```
+expand(i, i)：   从一个字符往外扩 → 奇数长度
+expand(i, i+1)： 从两个字符往外扩 → 偶数长度
+```
+
+只调一次会漏掉另一种情况。
+
+---
+
+## 解法二：动态规划
+
+### dp 含义
+
+`dp[i][j]` = s[i..j] 这个子串是否是回文（True/False）
+
+### 三种情况
+
+当 `s[i] == s[j]` 时：
+
+| 情况 | 条件 | 示例 | 判断 |
+|------|------|------|------|
+| 单个字符 | j - i == 0 | "a" | 一定是回文 |
+| 两个字符 | j - i == 1 | "aa" | 一定是回文 |
+| 三个及以上 | j - i >= 2 | "aba" | 看 dp[i+1][j-1] |
+
+合并情况 1 和 2：`j - i <= 1` 时直接为 True。
+
+### 遍历顺序
+
+`dp[i][j]` 依赖 `dp[i+1][j-1]`（左下方）：
+
+```
+    j →
+i   . . . .
+↓   . . . .
+    . [依赖] .
+    . . [当前] .
+```
+
+所以 **i 从下往上，j 从左往右**。
+
+### 代码
+
+```python
+class Solution:
+    def countSubstrings(self, s: str) -> int:
+        n = len(s)
+        dp = [[False] * n for _ in range(n)]
+        count = 0
+
+        for i in range(n - 1, -1, -1):       # i 从下往上
+            for j in range(i, n):              # j 从 i 开始往右
+                if s[i] == s[j]:
+                    if j - i <= 1:             # 长度 1 或 2
+                        dp[i][j] = True
+                        count += 1
+                    elif dp[i + 1][j - 1]:     # 长度 3+，看去掉两端是否回文
+                        dp[i][j] = True
+                        count += 1
+
+        return count
+```
+
+### 模拟过程
+
+s = `"aab"`，n = 3
+
+填表顺序（i 从 2 到 0，j 从 i 到 2）：
+
+| i | j | s[i]==s[j]? | 条件 | dp[i][j] | count |
+|---|---|-------------|------|----------|-------|
+| 2 | 2 | b==b ✓ | j-i=0 ≤ 1 | True | 1 |
+| 1 | 1 | a==a ✓ | j-i=0 ≤ 1 | True | 2 |
+| 1 | 2 | a==b ✗ | — | False | 2 |
+| 0 | 0 | a==a ✓ | j-i=0 ≤ 1 | True | 3 |
+| 0 | 1 | a==a ✓ | j-i=1 ≤ 1 | True | 4 |
+| 0 | 2 | a==b ✗ | — | False | 4 |
+
+结果：**4**
+
+---
+
+## 两种解法对比
+
+| | 中心扩展 | DP |
+|---|---|---|
+| 思路 | 从中心往外扩 | 区间子问题 |
+| 时间 | O(n²) | O(n²) |
+| 空间 | O(1) | O(n²) |
+| 代码量 | 更短 | 更长 |
+| 优势 | 省空间，直观 | 能复用 dp 表做其他题 |
+| 延伸 | 最长回文子串 | 最长回文子串、回文分割 |
+
+面试推荐中心扩展法，简洁且空间 O(1)。DP 适合需要记录所有子串回文信息的场景（比如 Palindrome Partitioning）。
+
+---
+
+## 常见 Bug
+
+| Bug | 后果 |
+|-----|------|
+| `dp` 初始化漏掉 `=` | 语法错误 |
+| `j - 1 <= 1` 写成减数字 1 | 只有 j≤2 时才对，后面全错 |
+| i 的范围从 `n` 开始而非 `n-1` | 索引越界 |
+| 中心扩展只调一次 expand | 漏掉奇数或偶数长度的回文 |
+
+---
+
+## 复杂度
+
+| | 时间 | 空间 |
+|---|---|---|
+| 中心扩展 | O(n²) | O(1) |
+| DP | O(n²) | O(n²) |
 ## 91 Decode Ways
 ### 1. dp 数组含义
 
