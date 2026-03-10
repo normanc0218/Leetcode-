@@ -460,6 +460,7 @@ def backtrack(路径, 选择列表, ...):
 - [207 Course Schedule](mainMaterial.md#207-course-schedule)
 - [210 Course Schedule II](mainMaterial.md#210-course-schedule-ii)
 - [684 Redundant Connection](mainMaterial.md#684-redundant-connection)
+- [269 Alien Dictionary](mainMaterial.md#269-alien-dictionary)
 
 ## 12. Advanced Graphs
 - [332 Reconstruct Itinerary](mainMaterial.md#332-reconstruct-itinerary)

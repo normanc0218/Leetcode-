@@ -943,6 +943,183 @@ class Solution:
 ## 100 Same Tree
 ## 572 Subtree of Another Tree
 ## 235 LCA of BST
+
+## 🧩 题目理解
+
+给一棵树和两个节点 `p`、`q`，找它们的**最近公共祖先**。
+
+```
+        3
+       / \
+      5   1
+     / \ / \
+    6  2 0  8
+      / \
+     7   4
+```
+
+| p | q | LCA | 原因 |
+|---|---|-----|------|
+| 6 | 4 | 5   | 分别在 5 的左右两侧 |
+| 5 | 4 | 5   | 5 本身就是 4 的祖先 |
+| 6 | 7 | 5   | 分别在 5 的左右两侧 |
+
+---
+
+## 💡 两种情况
+
+```
+情况1：p 和 q 分别在某节点的左右两侧  → 该节点是 LCA
+情况2：p 本身就是 q 的祖先            → p 是 LCA
+```
+
+---
+
+## 🌲 版本一：普通二叉树（后序遍历 + 回溯）
+
+### 思路
+不知道 p 和 q 在哪 → 左右都要搜 → 靠返回值往上传结果
+
+### 返回值逻辑
+```
+左右都不为空  → 当前节点是 LCA，返回自己
+只有左不为空  → 返回左
+只有右不为空  → 返回右
+自己是 p 或 q → 返回自己，不再往下找
+```
+
+### 代码
+```python
+def lowestCommonAncestor(self, root, p, q):
+    if not root:
+        return None
+    if root.val == p.val or root.val == q.val:
+        return root                              # 找到目标，直接返回
+    
+    left = self.lowestCommonAncestor(root.left, p, q)
+    right = self.lowestCommonAncestor(root.right, p, q)
+    
+    if left and right:                           # 左右都找到 → 当前节点是 LCA
+        return root
+    return left or right                         # 哪边不为空返回哪边
+```
+
+### 为什么有回溯？
+```python
+left = dfs(root.left)    # 递归下去
+right = dfs(root.right)  # 递归下去
+if left and right:        # ← 回来之后再判断，这就是回溯
+    return root
+```
+**回溯 = 递归返回后还需要做额外处理**，这题两边都搜完才能判断 LCA 在哪。
+
+---
+
+## 🌳 版本二：BST（直接比大小）
+
+### 思路
+BST 特性：左子树 < 根 < 右子树  
+→ 直接比大小就知道往哪走，不需要两边都搜
+
+### 三种情况（else 全包）
+```
+p 和 q 都小于 root  → 往左走
+p 和 q 都大于 root  → 往右走
+其他所有情况         → else，返回 root
+```
+
+`else` 包含的情况：
+```
+root == p           → p 本身就是 LCA
+root == q           → q 本身就是 LCA
+p 在左，q 在右      → 分叉点，root 是 LCA
+```
+三种情况答案都是返回 `root`，所以一个 `else` 全包。
+
+### 递归版
+```python
+def lowestCommonAncestor(self, root, p, q):
+    if root.val > p.val and root.val > q.val:
+        return self.lowestCommonAncestor(root.left, p, q)
+    elif root.val < p.val and root.val < q.val:
+        return self.lowestCommonAncestor(root.right, p, q)
+    else:
+        return root
+```
+
+### 迭代版（最简洁）
+```python
+def lowestCommonAncestor(self, root, p, q):
+    cur = root
+    while cur:
+        if p.val > cur.val and q.val > cur.val:
+            cur = cur.right
+        elif p.val < cur.val and q.val < cur.val:
+            cur = cur.left
+        else:
+            return cur
+```
+
+---
+
+## 🔑 核心对比
+
+| | 普通二叉树 | BST |
+|--|-----------|-----|
+| 方法 | 后序遍历 | 直接比大小 |
+| 需要回溯吗 | ✅ 需要 | ❌ 不需要 |
+| 搜索方向 | 左右都搜 | 只走一个方向 |
+| 时间复杂度 | O(N) | O(H)，H为树高 |
+
+---
+
+## 🧠 回溯 vs 递归
+
+```
+递归 = 函数调用自己
+回溯 = 递归返回后，还需要做额外处理
+```
+
+```python
+# 有回溯（普通二叉树）
+left = dfs(root.left)    # 递归
+right = dfs(root.right)  # 递归
+if left and right:        # ← 回来之后判断，这是回溯
+    return root
+
+# 无回溯（BST 递归）
+return dfs(root.left)    # 直接 return，不需要回来判断
+
+# 无回溯（BST 迭代）
+while cur:               # 完全没有递归
+    cur = cur.left/right
+```
+
+---
+
+## ⚠️ 易错点
+
+`return left or right` 等价于：
+```python
+if left and not right:
+    return left
+elif right and not left:
+    return right
+else:
+    return None   # 两边都为空
+```
+一行搞定三种情况。
+
+---
+
+## 🔗 相关题目
+
+| 题号 | 题目 | 关联点 |
+|------|------|--------|
+| LC 236 | LCA of Binary Tree | 普通二叉树版本 |
+| LC 235 | LCA of BST | BST 版本 |
+| LC 543 | Diameter of Binary Tree | 同样用后序遍历回溯 |
+| LC 124 | Binary Tree Maximum Path Sum | 同样用后序遍历回溯 |
 ## 102 Binary Tree Level Order Traversal
 ## 199 Binary Tree Right Side View
 ## 98 Validate BST
@@ -1441,6 +1618,183 @@ class Trie:
 ## 211 Design Add and Search Words
 ## 212 Word Search II
 
+## 🧩 题目概述
+
+给定一个 `m × n` 的字母矩阵 `board` 和一个单词列表 `words`，找出所有能在矩阵中搜索到的单词。
+
+- 每个单词必须由**相邻格子**（上下左右）的字母构成
+- 同一个格子在一个单词中**不能重复使用**
+
+---
+
+## 💡 核心思路
+
+### 为什么用 Trie？
+
+| 方法 | 时间复杂度 | 问题 |
+|------|-----------|------|
+| 对每个单词单独 DFS | O(W × M × N × 4^L) | 重复遍历公共前缀 |
+| **Trie + DFS（最优）** | O(M × N × 4 × 3^(L-1)) | 共享前缀，一次遍历多词 |
+
+**Trie 的关键优势**：多个单词共享前缀时，DFS 只需走一次这段路径。
+
+---
+
+## 🏗️ 数据结构
+
+```python
+class Trie:
+    def __init__(self):
+        self.children = {}   # char -> Trie node
+        self.word = None     # 到达此节点时完整的单词（None 表示非词尾）
+```
+
+---
+
+## 🔄 算法流程
+
+```
+1. 建 Trie
+   └── 遍历 words，将每个单词插入 Trie
+       └── 在末节点存储 node.word = word
+
+2. 遍历 board 每个格子作为起点
+   └── 对每个格子调用 dfs(i, j, root)
+
+3. DFS(i, j, node)
+   ├── 越界 / 已访问('#') / 字符不在 Trie → return
+   ├── 找到 node.word → 加入结果集，置 None（剪枝）
+   ├── 标记当前格子为 '#'（防止重复访问）
+   ├── 向四个方向递归
+   ├── 恢复格子原字符（回溯）
+   └── 若 node.children 为空 → 删除该分支（Trie 剪枝）
+```
+
+---
+
+## ✅ 最终代码（含优化）
+
+```python
+class Trie:
+    def __init__(self):
+        self.children = {}
+        self.word = None
+
+class Solution:
+    def findWords(self, board: List[List[str]], words: List[str]) -> List[str]:
+        # 1. 建 Trie
+        root = Trie()
+        for word in words:
+            node = root
+            for char in word:
+                if char not in node.children:
+                    node.children[char] = Trie()
+                node = node.children[char]
+            node.word = word
+
+        result = set()
+        m, n = len(board), len(board[0])
+
+        def dfs(i, j, node):
+            if i < 0 or i >= m or j < 0 or j >= n:
+                return
+            char = board[i][j]
+            if char == '#' or char not in node.children:
+                return
+
+            next_node = node.children[char]
+
+            # 找到单词
+            if next_node.word:
+                result.add(next_node.word)
+                next_node.word = None          # ⭐ 优化1：避免重复记录
+
+            # 回溯
+            board[i][j] = '#'
+            for di, dj in [(1,0), (-1,0), (0,1), (0,-1)]:
+                dfs(i+di, j+dj, next_node)
+            board[i][j] = char
+
+            # ⭐ 优化2：删除已耗尽的 Trie 分支
+            if not next_node.children:
+                del node.children[char]
+
+        for i in range(m):
+            for j in range(n):
+                dfs(i, j, root)
+
+        return list(result)
+```
+
+---
+
+## ⭐ 两大关键优化
+
+### 优化 1：找到单词后置 `None`
+
+```python
+if next_node.word:
+    result.add(next_node.word)
+    next_node.word = None   # ← 关键！
+```
+
+**作用**：防止同一个单词被多次找到（从不同起点或路径）时重复加入结果。  
+**影响**：最显著的性能优化，尤其当 words 中有重复或 board 中该单词出现多次时。
+
+---
+
+### 优化 2：删除空 Trie 分支
+
+```python
+if not next_node.children:
+    del node.children[char]
+```
+
+**作用**：当一个节点没有子节点了（叶子且已找到词），删除它。  
+**影响**：随着搜索进行，Trie 越来越小，后续 DFS 的无效检查减少。
+
+---
+
+## 🎯 易错点总结
+
+| 易错点 | 错误写法 | 正确写法 |
+|--------|---------|---------|
+| 回溯恢复 | 忘记 `board[i][j] = char` | 四方向 DFS 后必须恢复 |
+| 重复记录 | 直接用 `list`，同词加多次 | 用 `set` 或 `node.word = None` |
+| 越界检查 | 检查顺序混乱 | 先越界，再检查 `#`，再查 Trie |
+| 剪枝时机 | 在递归前剪枝 | **回溯之后**检查 `children` 是否为空 |
+
+---
+
+## 📊 复杂度分析
+
+| | 复杂度 | 说明 |
+|--|--------|------|
+| **时间** | O(M × N × 4 × 3^(L-1)) | 每格出发，每步最多3个方向（来路已标#） |
+| **空间** | O(W × L) | Trie 存储所有单词 |
+
+> L = 最长单词长度，W = 单词数量
+
+---
+
+## 🧠 记忆口诀
+
+```
+建 Trie → 每格出发 DFS
+找到词 → 记录 + 置 None
+标 # → 四向递归 → 恢复
+无子节点 → 删 Trie 分支
+```
+
+---
+
+## 🔗 相关题目
+
+| 题号 | 题目 | 关联点 |
+|------|------|--------|
+| LC 79 | Word Search | 本题单词版，无 Trie |
+| LC 208 | Implement Trie | Trie 基础实现 |
+| LC 211 | Design Add and Search Words | Trie + 通配符 |
 ## 215 Kth Largest Element in Array
 ## 703 Kth Largest Element in Stream
 ## 973 K Closest Points to Origin
@@ -2343,7 +2697,171 @@ count=4 == numCourses=4 → 返回 True
 **BFS**：入度为 0 就能上，上完减邻居，最后数一数。
 ## 210 Course Schedule II
 ## 684 Redundant Connection
+## 269 Alien Dictionary 
+## 🧩 题目理解
 
+外星语言用 a-z 的字母，但顺序未知。给你一个**按该语言排好序的字典**，反推字母顺序。
+
+**关键洞察**：字典已排序 → 相邻两个词之间隐藏了字母大小关系 → 建图 → 拓扑排序
+
+---
+
+## 🧠 思维路线
+
+### 第一步：发现这是一个图的问题
+
+相邻词对比，找第一个不同的字母：
+```
+"wrt" vs "wrf"  →  t 在 f 前面  →  t → f
+"wrf" vs "er"   →  w 在 e 前面  →  w → e
+"er"  vs "ett"  →  r 在 t 前面  →  r → t
+```
+
+每一对字母大小关系 = 图中一条**有向边**
+
+### 第二步：认出这是拓扑排序
+
+有向边代表顺序依赖 → 要输出一个满足所有依赖的排列 → **拓扑排序**
+
+等价题目：Course Schedule II（输出修课顺序）
+
+### 第三步：想清楚非法情况
+
+| 情况 | 例子 | 检测方式 |
+|------|------|---------|
+| 有环 | `a→b→a` | 拓扑排序后 `len(res) != len(indegree)` |
+| 前缀非法 | `["abc", "ab"]` | `len(w1) > len(w2)` 且 w1 前缀 == w2 |
+
+---
+
+## 🏗️ 建图细节
+
+### 初始化
+```python
+graph = defaultdict(set)
+indegree = {c: 0 for word in words for c in word}
+#           ↑ 所有出现过的字母都要在 indegree 里
+#             否则最后统计节点数会出错
+```
+
+### 为什么用 set 不用 list？
+避免重复边。比如两对词都推出 `w → e`，`set` 自动去重，`indegree` 也不会多加。
+
+```python
+if w2[j] not in graph[w1[j]]:   # 没有这条边才加
+    graph[w1[j]].add(w2[j])
+    indegree[w2[j]] += 1
+```
+
+### 为什么找到第一个不同字母就 break？
+```
+"wrt" vs "wrf"
+      t    f   ← 只有这里能推出信息
+         ↑
+      后面的字母无法比较，因为前提是前面都相同
+```
+
+### 数据结构可视化
+以 `["wrt", "wrf", "er"]` 为例：
+```
+graph = {
+  't': {'f'},   ← t → f
+  'w': {'e'},   ← w → e
+}
+
+indegree = {
+  'w': 0,
+  'r': 0,
+  't': 0,
+  'f': 1,   ← 被 t 指向
+  'e': 1,   ← 被 w 指向
+}
+```
+
+---
+
+## ✅ 完整代码
+
+```python
+from collections import defaultdict, deque
+
+class Solution:
+    def foreignDictionary(self, words: List[str]) -> str:
+        # 1. 初始化图
+        graph = defaultdict(set)
+        indegree = {c: 0 for word in words for c in word}
+
+        # 2. 建图
+        for i in range(len(words) - 1):
+            w1, w2 = words[i], words[i+1]
+            min_l = min(len(w1), len(w2))
+
+            # 非法：前缀情况
+            if len(w1) > len(w2) and w1[:min_l] == w2[:min_l]:
+                return ""
+
+            for j in range(min_l):
+                if w1[j] != w2[j]:
+                    if w2[j] not in graph[w1[j]]:   # 去重
+                        graph[w1[j]].add(w2[j])
+                        indegree[w2[j]] += 1
+                    break                            # 只看第一个不同字母
+
+        # 3. 拓扑排序（BFS）
+        queue = deque([c for c in indegree if indegree[c] == 0])
+        res = []
+
+        while queue:
+            node = queue.popleft()
+            res.append(node)
+            for nei in graph[node]:
+                indegree[nei] -= 1
+                if indegree[nei] == 0:
+                    queue.append(nei)
+
+        # 4. 判环
+        if len(res) != len(indegree):
+            return ""
+
+        return "".join(res)
+```
+
+---
+
+## ⭐ 关键点总结
+
+| 问题 | 答案 |
+|------|------|
+| 为什么能建图？ | 字典已排序，相邻词第一个不同字母揭示大小关系 |
+| 为什么拓扑排序？ | 字母顺序 = 有依赖关系的节点排列 |
+| indegree 为什么要初始化所有字母？ | 最后用 `len(indegree)` 统计总节点数判断有无环 |
+| 为什么用 set？ | 避免重复边导致 indegree 计算错误 |
+| 怎么判环？ | `len(res) != len(indegree)` |
+| 怎么判前缀非法？ | 长词是短词前缀却排在前面 |
+
+---
+
+## 🧩 与 Course Schedule 的对比
+
+| | Course Schedule II | Alien Dictionary |
+|--|-------------------|-----------------|
+| 图的来源 | 直接给你 `[a,b]` | 从 words 推导 |
+| 节点 | 课程编号 | 字母 |
+| 边的含义 | a 是 b 的先修课 | 字母 a 排在 b 前面 |
+| 输出 | 修课顺序 | 字母顺序 |
+| 判环 | 返回 `[]` | 返回 `""` |
+
+**本质完全相同，唯一难点是建图。**
+
+---
+
+## 🔗 相关题目
+
+| 题号 | 题目 | 关联点 |
+|------|------|--------|
+| LC 207 | Course Schedule | 拓扑排序判环 |
+| LC 210 | Course Schedule II | 拓扑排序输出结果 |
+| LC 269 | Alien Dictionary | 本题 |
 ## 332 Reconstruct Itinerary
 ## 1584 Min Cost to Connect All Points
 ## 743 Network Delay Time
