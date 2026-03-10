@@ -1125,7 +1125,166 @@ class Solution:
 - **时间**：O(n)，每个节点访问一次
 - **空间**：O(h)，递归栈深度，h 为树高；显式 DP 为 O(n)
 ## 297 Serialize and Deserialize Binary Tree
+## 核心概念
 
+**序列化（Serialize）**：把内存里的树 → 变成字符串  
+**反序列化（Deserialize）**：把字符串 → 还原回原来的树
+
+字符串格式自己定，只要两个函数互相配合能还原就行。
+
+---
+
+## 为什么需要记录 null？
+
+只存节点值，信息不够用。下面两棵树序列化后都是 `"1,2,3"`，无法区分：
+
+```
+    1          1
+   / \          \
+  2   3          2
+                  \
+                   3
+```
+
+**必须用 `N` 记录 null**，才能唯一确定树的结构：
+- 左边那棵：`"1,2,3,N,N,N,N"`
+- 右边那棵：`"1,N,2,N,3,N,N"`
+
+---
+
+## BFS 解法
+
+### Serialize
+
+用队列一层层读节点，null 也要 append 进队列（不然位置信息会丢失）：
+
+```python
+def serialize(self, root: Optional[TreeNode]) -> str:
+    store = []
+    q = deque([root])
+    while q:
+        node = q.popleft()
+        if node:
+            store.append(str(node.val))
+            q.append(node.left)   # 不管是不是 null 都 append
+            q.append(node.right)
+        else:
+            store.append("N")     # null 不加孩子
+    return ','.join(store)
+```
+
+**示例walkthrough：**
+```
+    1
+   / \
+  2   3
+     / \
+    4   5
+
+queue: [1]
+弹出 1 → "1"，加入 2, 3
+弹出 2 → "2"，加入 N, N
+弹出 3 → "3"，加入 4, 5
+弹出 N → "N"
+弹出 N → "N"
+弹出 4 → "4"，加入 N, N
+弹出 5 → "5"，加入 N, N
+...
+
+结果: "1,2,3,N,N,4,5,N,N,N,N"
+```
+
+---
+
+### Deserialize
+
+同样用 BFS，每弹出一个节点，就从 vals 取两个值分配给它的左右孩子：
+
+```python
+def deserialize(self, data: str) -> Optional[TreeNode]:
+    if not data or data == "N":
+        return None
+    vals = data.split(',')
+    root = TreeNode(int(vals[0]))
+    q = deque([root])
+    i = 1
+    while q:
+        node = q.popleft()
+        if vals[i] != 'N':
+            node.left = TreeNode(int(vals[i]))
+            q.append(node.left)
+        i += 1
+        if vals[i] != 'N':
+            node.right = TreeNode(int(vals[i]))
+            q.append(node.right)
+        i += 1
+    return root
+```
+
+**关键点**：每弹出一个节点，消费 vals 里的两个值（左孩子 + 右孩子），用 `i` 追踪位置。
+
+---
+
+## 常见坑
+
+| 问题 | 原因 | 修复 |
+|------|------|------|
+| `ValueError: invalid literal for int() with base 10: 'N'` | 空树 serialize 成 `"N"`，deserialize 时直接 `int("N")` 炸了 | 加 `if not data or data == "N": return None` |
+| 两棵不同的树 serialize 结果一样 | 没有记录 null 的位置 | null 也要 append 进队列并记录 `"N"` |
+| `join` 后分不清节点边界 | 用了 `''.join()` | 改成 `','.join()` 用逗号分隔 |
+
+---
+
+## 复杂度
+
+| | 时间 | 空间 |
+|---|---|---|
+| Serialize | O(n) | O(n) |
+| Deserialize | O(n) | O(n) |
+
+两个操作都是每个节点恰好访问一次。
+
+---
+
+## 完整代码
+
+```python
+from collections import deque
+from typing import Optional
+
+class Codec:
+    def serialize(self, root: Optional[TreeNode]) -> str:
+        store = []
+        q = deque([root])
+        while q:
+            node = q.popleft()
+            if node:
+                store.append(str(node.val))
+                q.append(node.left)
+                q.append(node.right)
+            else:
+                store.append("N")
+        return ','.join(store)
+
+    def deserialize(self, data: str) -> Optional[TreeNode]:
+        if not data or data == "N":
+            return None
+        vals = data.split(',')
+        root = TreeNode(int(vals[0]))
+        q = deque([root])
+        i = 1
+        while q:
+            node = q.popleft()
+            if vals[i] != 'N':
+                node.left = TreeNode(int(vals[i]))
+                q.append(node.left)
+            i += 1
+            if vals[i] != 'N':
+                node.right = TreeNode(int(vals[i]))
+                q.append(node.right)
+            i += 1
+        return root
+```
 ## 208 Implement Trie
 
 ## 题目核心
