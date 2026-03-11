@@ -1,5 +1,34 @@
 ## 1 Two Sum
+## 287 Find the Duplicate Number
 
+把 `index → nums[index]` 当链表，重复值 = 环入口，用 Floyd 判圈（同 142 题）。
+
+```
+nums = [1,3,4,2,2]
+
+0 → 1 → 3 → 2 → 4 → 2 → 4 ...
+                 ↑_________↓
+环入口 = 2 = 重复的数
+```
+
+1. 快慢指针从 0 出发，相遇在环内
+2. 一个回到 0，都走一步，再次相遇就是入口
+
+```python
+class Solution:
+    def findDuplicate(self, nums):
+        slow = fast = 0
+        while True:
+            slow = nums[slow]
+            fast = nums[nums[fast]]
+            if slow == fast:
+                break
+        slow = 0
+        while slow != fast:
+            slow = nums[slow]
+            fast = nums[fast]
+        return slow
+```
 ## 49 Group Anagrams
 
 **核心思路：** 找一个 key 让所有 anagram 映射到同一组。
@@ -2342,7 +2371,109 @@ def backtrack_path(位置, 路径状态, 目标):
 **提示**: 回溯的关键在于"撤销"，寻路问题几乎都需要回溯！💪
 ## 131 Palindrome Partitioning
 ## 17 Letter Combinations of Phone Number
+## 51 N Queens
+## 核心洞察
 
+每一行必须且只能放一个皇后，所以问题简化为：**逐行选择皇后放在哪一列**。
+
+---
+
+## 回溯五问模板
+
+| # | 问题 | N皇后的回答 |
+|---|------|-------------|
+| 1 | 每一步在做什么选择？ | 在第 `row` 行选一个 `col` 放皇后 |
+| 2 | 什么时候结束？ | `row == n`，所有行都放完了 |
+| 3 | 怎么判断合不合法？ | 三个冲突：同列、主对角线 `row-col`、副对角线 `row+col` |
+| 4 | 需要维护哪些状态？ | `cols` set、`diag1` set、`diag2` set、`path` 列表 |
+| 5 | 怎么撤销选择？ | 加了什么就去掉什么（remove / pop） |
+
+---
+
+## 对角线判断怎么记
+
+在棋盘上：
+
+- `\` 方向：同一条线上所有格子 **行 - 列** 相同
+- `/` 方向：同一条线上所有格子 **行 + 列** 相同
+
+画个 4×4 格子验证一下就不会忘：
+
+```
+       col 0   col 1   col 2   col 3
+row 0:  0-0=0   0-1=-1  0-2=-2  0-3=-3    (row - col)
+row 1:  1-0=1   1-1=0   1-2=-1  1-3=-2
+row 2:  2-0=2   2-1=1   2-2=0   2-3=-1
+row 3:  3-0=3   3-1=2   3-2=1   3-3=0
+```
+
+相同值连起来就是 `\` 对角线。`row + col` 同理对应 `/` 对角线。
+
+---
+
+## 代码骨架（填空版）
+
+```python
+def backtrack(row, path):
+    # 终止条件（第2问）
+    if ___:
+        收集结果
+        return
+
+    for col in range(n):        # 每一步的选择（第1问）
+        if 不合法:              # 判断合法性（第3问）
+            continue
+
+        做选择，更新状态        # 第4问
+        backtrack(row + 1, path)
+        撤销选择                # 第5问
+```
+
+---
+
+## 完整参考代码
+
+```python
+class Solution:
+    def solveNQueens(self, n):
+        cols, diag1, diag2 = set(), set(), set()
+        res = []
+
+        def backtrack(row, path):
+            if row == n:
+                board = []
+                for c in path:
+                    board.append('.' * c + 'Q' + '.' * (n - c - 1))
+                res.append(board)
+                return
+
+            for col in range(n):
+                if col in cols or (row - col) in diag1 or (row + col) in diag2:
+                    continue
+
+                path.append(col)
+                cols.add(col)
+                diag1.add(row - col)
+                diag2.add(row + col)
+
+                backtrack(row + 1, path)
+
+                path.pop()
+                cols.remove(col)
+                diag1.remove(row - col)
+                diag2.remove(row + col)
+
+        backtrack(0, [])
+        return res
+```
+
+---
+
+## 易错点提醒
+
+1. 构建 board 后别忘了 `res.append(board)`
+2. board 不需要在回溯过程中维护，终止时按需生成即可
+3. 撤销选择要和做选择完全对称，少一个就会出 bug
 ## 200 Number of Islands
 ## 695 Max Area of Island
 ## 133 Clone Graph
@@ -3348,6 +3479,27 @@ def numDecodings(self, s):
     return dp[n]
 ```
 ## 322 Coin Change
+
+**1. dp定义：** `dp[i]` = 凑出金额 `i` 所需的最少硬币数
+
+**2. 递推公式：** `dp[i] = min(dp[i], dp[i - c] + 1)`，对每个硬币 `c`
+
+**3. 初始化：** `dp[0] = 0`，其余 `inf`
+
+**4. 遍历顺序：** 外层遍历硬币，内层正序遍历金额（完全背包）
+
+**5. 举例验证：** coins=[1,2,5], amount=11 → dp[11]=3（5+5+1）
+
+```python
+class Solution:
+    def coinChange(self, coins: List[int], amount: int) -> int:
+        dp = [float('inf')] * (amount + 1)
+        dp[0] = 0
+        for c in coins:
+            for i in range(c, amount + 1):
+                dp[i] = min(dp[i], dp[i - c] + 1)
+        return dp[amount] if dp[amount] != float('inf') else -1
+```
 ## 152 Maximum Product Subarray
 
 ## 方法一：前后缀积（贪心）

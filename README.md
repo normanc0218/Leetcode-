@@ -27,6 +27,7 @@ Personal algorithm knowledge base.
 ---
 ## 01. Array & Hashing
 - [1 Two Sum](mainMaterial.md#1-two-sum)
+- [287 Find the Duplicate Number](mainMaterial.md#287-find-the-duplicate-number)
 - [49 Group Anagrams](mainMaterial.md#49-group-anagrams)
 - [217 Contains Duplicate](mainMaterial.md#217-contains-duplicate)
 - [347 Top K Frequent Elements](mainMaterial.md#347-top-k-frequent-elements)
@@ -414,6 +415,7 @@ mid = (left + right) >> 1
 - [79 Word Search](mainMaterial.md#79-word-search)
 - [131 Palindrome Partitioning](mainMaterial.md#131-palindrome-partitioning)
 - [17 Letter Combinations of Phone Number](mainMaterial.md#17-letter-combinations-of-phone-number)
+- [51 N Queens](mainMaterial.md#51-n-queens)
 # 🧠 回溯模板总结
 
 ```python
@@ -523,7 +525,146 @@ def backtrack(路径, 选择列表, ...):
 - [268 Missing Number](mainMaterial.md#268-missing-number)
 - [371 Sum of Two Integers](mainMaterial.md#371-sum-of-two-integers)
 - [190 Reverse Bits](mainMaterial.md#190-reverse-bits)
-## 📊 Progress
+
+
+
+# NeetCode 250 独有题目（不在 NeetCode 150 中）
+
+## 1. Arrays & Hashing
+- [1929 Concatenation of Array](extraMaterial.md#1929-concatenation-of-array)
+- [14 Longest Common Prefix](extraMaterial.md#14-longest-common-prefix)
+- [27 Remove Element](extraMaterial.md#27-remove-element)
+- [169 Majority Element](extraMaterial.md#169-majority-element)
+- [705 Design HashSet](extraMaterial.md#705-design-hashset)
+- [706 Design HashMap](extraMaterial.md#706-design-hashmap)
+- [912 Sort an Array](extraMaterial.md#912-sort-an-array)
+- [75 Sort Colors](extraMaterial.md#75-sort-colors)
+- [304 Range Sum Query 2D Immutable](extraMaterial.md#304-range-sum-query-2d-immutable)
+- [122 Best Time to Buy And Sell Stock II](extraMaterial.md#122-best-time-to-buy-and-sell-stock-ii)
+- [229 Majority Element II](extraMaterial.md#229-majority-element-ii)
+- [560 Subarray Sum Equals K](extraMaterial.md#560-subarray-sum-equals-k)
+- [41 First Missing Positive](extraMaterial.md#41-first-missing-positive)
+
+## 2. Two Pointers
+- [344 Reverse String](extraMaterial.md#344-reverse-string)
+- [680 Valid Palindrome II](extraMaterial.md#680-valid-palindrome-ii)
+- [1768 Merge Strings Alternately](extraMaterial.md#1768-merge-strings-alternately)
+- [88 Merge Sorted Array](extraMaterial.md#88-merge-sorted-array)
+- [26 Remove Duplicates From Sorted Array](extraMaterial.md#26-remove-duplicates-from-sorted-array)
+- [18 4Sum](extraMaterial.md#18-4sum)
+- [189 Rotate Array](extraMaterial.md#189-rotate-array)
+- [881 Boats to Save People](extraMaterial.md#881-boats-to-save-people)
+
+## 3. Sliding Window
+- [219 Contains Duplicate II](extraMaterial.md#219-contains-duplicate-ii)
+- [209 Minimum Size Subarray Sum](extraMaterial.md#209-minimum-size-subarray-sum)
+- [658 Find K Closest Elements](extraMaterial.md#658-find-k-closest-elements)
+
+## 4. Stack
+- [682 Baseball Game](extraMaterial.md#682-baseball-game)
+- [225 Implement Stack Using Queues](extraMaterial.md#225-implement-stack-using-queues)
+- [232 Implement Queue using Stacks](extraMaterial.md#232-implement-queue-using-stacks)
+- [735 Asteroid Collision](extraMaterial.md#735-asteroid-collision)
+- [901 Online Stock Span](extraMaterial.md#901-online-stock-span)
+- [71 Simplify Path](extraMaterial.md#71-simplify-path)
+- [394 Decode String](extraMaterial.md#394-decode-string)
+- [895 Maximum Frequency Stack](extraMaterial.md#895-maximum-frequency-stack)
+
+## 5. Binary Search
+- [35 Search Insert Position](extraMaterial.md#35-search-insert-position)
+- [374 Guess Number Higher Or Lower](extraMaterial.md#374-guess-number-higher-or-lower)
+- [69 Sqrt(x)](extraMaterial.md#69-sqrtx)
+- [1011 Capacity to Ship Packages Within D Days](extraMaterial.md#1011-capacity-to-ship-packages-within-d-days)
+- [81 Search In Rotated Sorted Array II](extraMaterial.md#81-search-in-rotated-sorted-array-ii)
+- [410 Split Array Largest Sum](extraMaterial.md#410-split-array-largest-sum)
+- [1095 Find in Mountain Array](extraMaterial.md#1095-find-in-mountain-array)
+
+## 6. Linked List
+- [92 Reverse Linked List II](extraMaterial.md#92-reverse-linked-list-ii)
+- [622 Design Circular Queue](extraMaterial.md#622-design-circular-queue)
+- [460 LFU Cache](extraMaterial.md#460-lfu-cache)
+
+## 7. Trees
+- [94 Binary Tree Inorder Traversal](extraMaterial.md#94-binary-tree-inorder-traversal)
+- [144 Binary Tree Preorder Traversal](extraMaterial.md#144-binary-tree-preorder-traversal)
+- [145 Binary Tree Postorder Traversal](extraMaterial.md#145-binary-tree-postorder-traversal)
+- [701 Insert into a Binary Search Tree](extraMaterial.md#701-insert-into-a-binary-search-tree)
+- [450 Delete Node in a BST](extraMaterial.md#450-delete-node-in-a-bst)
+- [427 Construct Quad Tree](extraMaterial.md#427-construct-quad-tree)
+- [337 House Robber III](extraMaterial.md#337-house-robber-iii)
+- [1325 Delete Leaves With a Given Value](extraMaterial.md#1325-delete-leaves-with-a-given-value)
+
+## 8. Heap / Priority Queue
+- [1834 Single Threaded CPU](extraMaterial.md#1834-single-threaded-cpu)
+- [767 Reorganize String](extraMaterial.md#767-reorganize-string)
+- [1405 Longest Happy String](extraMaterial.md#1405-longest-happy-string)
+- [1094 Car Pooling](extraMaterial.md#1094-car-pooling)
+- [502 IPO](extraMaterial.md#502-ipo)
+
+## 9. Backtracking
+- [1863 Sum of All Subsets XOR Total](extraMaterial.md#1863-sum-of-all-subsets-xor-total)
+- [77 Combinations](extraMaterial.md#77-combinations)
+- [47 Permutations II](extraMaterial.md#47-permutations-ii)
+- [473 Matchsticks to Square](extraMaterial.md#473-matchsticks-to-square)
+- [698 Partition to K Equal Sum Subsets](extraMaterial.md#698-partition-to-k-equal-sum-subsets)
+- [52 N Queens II](extraMaterial.md#52-n-queens-ii)
+- [140 Word Break II](extraMaterial.md#140-word-break-ii)
+
+## 10. Tries
+- [2707 Extra Characters in a String](extraMaterial.md#2707-extra-characters-in-a-string)
+
+## 11. Graphs
+- [463 Island Perimeter](extraMaterial.md#463-island-perimeter)
+- [953 Verifying An Alien Dictionary](extraMaterial.md#953-verifying-an-alien-dictionary)
+- [997 Find the Town Judge](extraMaterial.md#997-find-the-town-judge)
+- [752 Open The Lock](extraMaterial.md#752-open-the-lock)
+- [1462 Course Schedule IV](extraMaterial.md#1462-course-schedule-iv)
+- [721 Accounts Merge](extraMaterial.md#721-accounts-merge)
+- [399 Evaluate Division](extraMaterial.md#399-evaluate-division)
+- [310 Minimum Height Trees](extraMaterial.md#310-minimum-height-trees)
+
+## 12. Advanced Graphs
+- [1631 Path with Minimum Effort](extraMaterial.md#1631-path-with-minimum-effort)
+- [1489 Find Critical and Pseudo Critical Edges in Minimum Spanning Tree](extraMaterial.md#1489-find-critical-and-pseudo-critical-edges-in-minimum-spanning-tree)
+- [2392 Build a Matrix With Conditions](extraMaterial.md#2392-build-a-matrix-with-conditions)
+- [2709 Greatest Common Divisor Traversal](extraMaterial.md#2709-greatest-common-divisor-traversal)
+
+## 13. 1-D Dynamic Programming
+- [1137 N-th Tribonacci Number](extraMaterial.md#1137-n-th-tribonacci-number)
+- [377 Combination Sum IV](extraMaterial.md#377-combination-sum-iv)
+- [279 Perfect Squares](extraMaterial.md#279-perfect-squares)
+- [343 Integer Break](extraMaterial.md#343-integer-break)
+- [1406 Stone Game III](extraMaterial.md#1406-stone-game-iii)
+
+## 14. 2-D Dynamic Programming
+- [63 Unique Paths II](extraMaterial.md#63-unique-paths-ii)
+- [64 Minimum Path Sum](extraMaterial.md#64-minimum-path-sum)
+- [1049 Last Stone Weight II](extraMaterial.md#1049-last-stone-weight-ii)
+- [877 Stone Game](extraMaterial.md#877-stone-game)
+- [1140 Stone Game II](extraMaterial.md#1140-stone-game-ii)
+
+## 15. Greedy
+- [860 Lemonade Change](extraMaterial.md#860-lemonade-change)
+- [918 Maximum Sum Circular Subarray](extraMaterial.md#918-maximum-sum-circular-subarray)
+- [978 Longest Turbulent Subarray](extraMaterial.md#978-longest-turbulent-subarray)
+- [1871 Jump Game VII](extraMaterial.md#1871-jump-game-vii)
+- [649 Dota2 Senate](extraMaterial.md#649-dota2-senate)
+- [135 Candy](extraMaterial.md#135-candy)
+
+## 16. Intervals
+- [2402 Meeting Rooms III](extraMaterial.md#2402-meeting-rooms-iii)
+
+## 17. Math & Geometry
+- [168 Excel Sheet Column Title](extraMaterial.md#168-excel-sheet-column-title)
+- [1071 Greatest Common Divisor of Strings](extraMaterial.md#1071-greatest-common-divisor-of-strings)
+- [2807 Insert Greatest Common Divisors in Linked List](extraMaterial.md#2807-insert-greatest-common-divisors-in-linked-list)
+- [867 Transpose Matrix](extraMaterial.md#867-transpose-matrix)
+- [13 Roman to Integer](extraMaterial.md#13-roman-to-integer)
+
+## 18. Bit Manipulation
+- [67 Add Binary](extraMaterial.md#67-add-binary)
+- [201 Bitwise AND of Numbers Range](extraMaterial.md#201-bitwise-and-of-numbers-range)
+- [3133 Minimum Array End](extraMaterial.md#3133-minimum-array-end)
 
 - Total Problems: 150
 
