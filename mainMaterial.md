@@ -813,7 +813,92 @@ class Solution:
 ## 424 Longest Repeating Character Replacement
 ## 567 Permutation in String
 ## 76 Minimum Window Substring
+# 76. Minimum Window Substring — 笔记
 
+## 题意
+
+给定字符串 s 和 t，找 s 中包含 t 所有字符（含重复）的最短子串。
+
+---
+
+## 核心思路：滑动窗口
+
+两个指针，right 扩窗口收字符，left 缩窗口找最短。
+
+```
+right 每走一步：
+    加入 s[right]，更新窗口计数
+    
+    while 窗口满足条件（have == need）：
+        更新最短答案
+        移出 s[left]，更新计数
+        left 右移
+```
+
+---
+
+## 需要的数据结构
+
+| 变量 | 作用 |
+|------|------|
+| `hashmap` | t 中每个字符需要出现的次数 |
+| `window` | 当前窗口中每个字符的计数 |
+| `need` | 需要满足的字符种类数（`len(hashmap)`） |
+| `have` | 已经满足的字符种类数 |
+
+为什么需要 `have` 和 `need`？没有它们就要每次遍历整个 map 判断是否满足，有了就是 O(1) 判断。
+
+---
+
+## have 什么时候变化
+
+- **加 1**：加入字符后 `window[c] == hashmap[c]`（刚好达标）
+- **减 1**：移出字符后 `window[c] < hashmap[c]`（刚好不达标）
+
+关键是用 `==` 和 `<` 而不是 `>=` 和 `<=`，保证 have 只在临界点变化，不会重复加减。
+
+---
+
+## 代码
+
+```python
+class Solution:
+    def minWindow(self, s: str, t: str) -> str:
+        hashmap = {}
+        for c in t:
+            hashmap[c] = hashmap.get(c, 0) + 1
+
+        window = {}
+        have, need = 0, len(hashmap)
+        start, res_len = -1, float('inf')
+        l = 0
+
+        for r in range(len(s)):
+            char = s[r]
+            window[char] = window.get(char, 0) + 1
+            if char in hashmap and window[char] == hashmap[char]:
+                have += 1
+
+            while have == need:
+                if r - l + 1 < res_len:
+                    start = l
+                    res_len = r - l + 1
+                window[s[l]] -= 1
+                if s[l] in hashmap and window[s[l]] < hashmap[s[l]]:
+                    have -= 1
+                l += 1
+
+        return s[start:start + res_len] if res_len != float('inf') else ''
+```
+
+---
+
+## 易错点
+
+1. `hashmap` 是字符计数，不是 `{char: index}`
+2. `res_len` 初始值是 `float('inf')`（找最小），不是 `float('-inf')`
+3. 缩窗口时 `l += 1`（往右移），不是 `l -= 1`
+4. 判断用 `==` 和 `<`，不是 `>=` 和 `<=`，避免 have 重复变化
 ## 20 Valid Parentheses
 ## 155 Min Stack
 ## 150 Evaluate Reverse Polish Notation
@@ -1256,6 +1341,95 @@ else:
 ## 98 Validate BST
 ## 230 Kth Smallest in BST
 ## 105 Construct Binary Tree from Preorder and Inorder
+## 题意
+
+给定一棵二叉树的前序遍历和中序遍历数组（值唯一），重建这棵二叉树。
+
+---
+
+## 核心洞察
+
+两个数组各司其职：
+
+- **preorder**：告诉你"谁是根"——每段的第一个元素就是当前子树的根
+- **inorder**：告诉你"怎么分左右"——根的位置把元素分成左子树和右子树
+
+左子树的节点数（`l_size`）从 inorder 算出来后，又反过来帮你切分 preorder。
+
+---
+
+## 递推过程图示
+
+```
+preorder: [3, 9, 20, 15, 7]
+inorder:  [9, 3, 15, 20, 7]
+
+第一步：preorder[0] = 3 是根
+        inorder 中 3 的位置把数组分成：
+        左子树 inorder: [9]      → l_size = 1
+        右子树 inorder: [15,20,7]
+
+        对应切分 preorder：
+        左子树 preorder: [9]         → preStart+1 开始，长度 l_size
+        右子树 preorder: [20,15,7]   → preStart+l_size+1 开始
+
+第二步：对左右子树递归，重复同样的过程
+```
+
+---
+
+## 思考框架
+
+| 问题 | 回答 |
+|------|------|
+| 每一步在做什么？ | 从 preorder 取根，用 inorder 分左右 |
+| 什么时候结束？ | `start > end`，区间为空 |
+| 怎么划分子问题？ | 用 `l_size = index - start` 切分两个数组 |
+| 怎么加速找根的位置？ | 预建 hashmap：`{val: i for i, val in enumerate(inorder)}` |
+
+---
+
+## 代码
+
+```python
+class Solution:
+    def buildTree(self, preorder, inorder):
+        idx_map = {val: i for i, val in enumerate(inorder)}
+
+        def dfs(preStart, start, end):
+            if start > end:
+                return None
+
+            nVal = preorder[preStart]
+            node = TreeNode(val=nVal)
+
+            index = idx_map[nVal]
+            l_size = index - start
+
+            node.left = dfs(preStart + 1, start, index - 1)
+            node.right = dfs(preStart + l_size + 1, index + 1, end)
+            return node
+
+        return dfs(0, 0, len(inorder) - 1)
+```
+
+---
+
+## 参数含义
+
+| 参数 | 含义 |
+|------|------|
+| `preStart` | 当前子树的根在 preorder 中的位置 |
+| `start` | 当前子树在 inorder 中的左边界 |
+| `end` | 当前子树在 inorder 中的右边界 |
+
+---
+
+## 易错点
+
+1. 终止条件是 `start > end`，不是判断 node 是否为 None（node 还没创建）
+2. 右子树的 preStart 是 `preStart + l_size + 1`，要跳过左子树的所有节点
+3. 别忘了预建 hashmap，否则每次线性查找会超时
 ## 124 Binary Tree Maximum Path Sum
 # Binary Tree Maximum Path Sum — 解题笔记
 
@@ -3767,6 +3941,63 @@ def uniquePaths(self, m, n):
 ## 72 Edit Distance
 ## 115 Distinct Subsequences
 
+## 题意
+
+给定字符串 `s` 和 `t`，求 `s` 的子序列中等于 `t` 的个数。
+
+---
+
+## 思路：0/1 背包类比
+
+把 `s` 的每个字符看作"物品"，`t` 看作"目标"，每个字符选或不选：
+
+- **选**：`s[j]` 和 `t[i-1]` 匹配，方案数从 `dp[i-1]` 转移过来
+- **不选**：跳过这个字符，`dp[i]` 保持不变
+
+和 0/1 背包一样，压缩成一维后需要**倒序遍历**，防止同一轮的结果被覆盖。
+
+---
+
+## dp 数组含义
+
+`dp[i]` = 用已遍历的 `s` 的字符，匹配 `t` 的前 `i` 个字符的方案数
+
+| dp 下标 | 对应 t 的内容 | 初始值 |
+|---------|--------------|--------|
+| `dp[0]` | 空串 | 1（空串总能匹配） |
+| `dp[1]` | `t[0]` | 0 |
+| `dp[2]` | `t[1]` | 0 |
+| `dp[i]` | `t[i-1]` | 0 |
+
+### 为什么比较 `t[i-1]` 而不是 `t[i]`？
+
+因为 `dp[0]` 代表空串，整个数组往后偏移了一位。`dp[i]` 对应的是 t 的第 i 个字符，下标是 `i-1`。
+
+---
+
+## 代码
+
+```python
+class Solution:
+    def numDistinct(self, s: str, t: str) -> int:
+        dp = [0] * (len(t) + 1)
+        dp[0] = 1
+
+        for ss in s:
+            for i in range(len(t), 0, -1):   # 倒序，0/1 背包套路
+                if ss == t[i - 1]:            # dp[i] 对应 t[i-1]
+                    dp[i] += dp[i - 1]
+
+        return dp[len(t)]                     # 匹配整个 t
+```
+
+---
+
+## 易错点
+
+1. **索引偏移**：`dp[i]` 对应 `t[i-1]`，不是 `t[i]`
+2. **返回值**：返回 `dp[len(t)]`，不是 `dp[len(t)-1]`
+3. **倒序遍历**：正序会导致同一个字符被重复使用，变成完全背包
 ## 53 Maximum Subarray
 ## 55 Jump Game
 ## 45 Jump Game II
@@ -3901,6 +4132,86 @@ def setZeroes(self, matrix):
 | set 记录行列 | O(mn) | O(m+n) | 只记录哪些行列要置零 |
 | 第一行/列当标记 | O(mn) | O(1) | 借用矩阵自身空间存标记 |
 ## 202 Happy Number
+
+## 题意
+
+反复对 `n` 的每一位数字求平方和，如果最终能变成 1 就是快乐数，否则会陷入无限循环。
+
+---
+
+## 解法一：HashSet 检测循环
+
+最直观的思路——记录见过的数，重复出现就说明进入了环。
+
+```python
+def isHappy(self, n: int) -> bool:
+    visit = set()
+
+    def sum_digit(n):
+        output = 0
+        while n:
+            digit = n % 10
+            output += digit * digit
+            n //= 10
+        return output
+
+    while n not in visit:
+        visit.add(n)
+        n = sum_digit(n)
+        if n == 1:
+            return True
+    return False
+```
+
+时间 O(n)，空间 O(n)。
+
+---
+
+## 解法二：快慢指针（优化空间）
+
+### 关键洞察：这就是一条链
+
+每次 `sum_digit` 的结果就是"下一个节点"，整条链一定有环：
+
+```
+快乐数:   19 → 82 → 68 → 100 → 1 → 1 → 1 → ...（1 自循环）
+不快乐数:  2 → 4 → 16 → 37 → 58 → 89 → 145 → 42 → 20 → 4 → ...（回到 4）
+```
+
+所以问题变成：**环里的值是不是 1？**
+
+### 为什么不需要像 142 题那样回起点再走一次？
+
+- 142 题（链表环入口）：需要找**环的入口在哪**，所以相遇后要回起点再走一次来定位
+- 本题：只关心**环里是不是 1**，不关心入口位置。1 如果在环里一定是自循环（`1 → 1`），fast 一定会经过 1，相遇时看值就够了
+
+### 代码
+
+```python
+def isHappy(self, n: int) -> bool:
+    def sum_digit(n):
+        output = 0
+        while n:
+            digit = n % 10
+            output += digit * digit
+            n //= 10
+        return output
+
+    slow, fast = n, sum_digit(n)
+    while fast != 1 and slow != fast:
+        slow = sum_digit(slow)
+        fast = sum_digit(sum_digit(fast))
+    return fast == 1
+```
+
+时间 O(n)，空间 O(1)。
+
+---
+
+## 易错点
+
+1. fast 初始值是 `sum_digit(n)` 而不是 `n`，否则 `slow == fast` 一开始就成立直接退出
+2. 循环条件要同时检查 `fast != 1` 和 `slow != fast`，少一个都可能死循环或漏判
 ## 66 Plus One
 ## 50 Pow(x, n)
 

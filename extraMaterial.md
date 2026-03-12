@@ -129,6 +129,117 @@ Diag2-> r+c
 ## 279 Perfect Squares
 ## 343 Integer Break
 ## 1406 Stone Game III
+
+## 题意
+
+两个玩家轮流从数组前端取 1、2 或 3 个石子，都以最优策略最大化自己的得分。判断 Alice（先手）赢、Bob 赢还是平局。
+
+---
+
+## 核心洞察
+
+### 博弈 dp 为什么从后往前？
+
+"取石子"是从前往后取的，取完之后剩下的是**后半段**，后半段是一个独立的子问题。所以后面的局面先确定，从后往前推才自然。
+
+规律：遇到"从前端取东西"的博弈题，基本都是从后往前 dp。
+
+### dp 定义
+
+`dp[i]` = 从第 i 个石子开始，当前玩家比对手多拿的最大分数差
+
+注意：不区分 Alice 和 Bob，因为两人策略完全一样——轮到谁，谁都想最大化自己的优势。
+
+---
+
+## 转移方程
+
+当前玩家从位置 i 取 k 个石子（k = 1, 2, 3）：
+
+```
+dp[i] = max(total_k - dp[i + k])    其中 k = 1, 2, 3
+```
+
+- `total_k`：取走的 k 个石子的分数和
+- `dp[i + k]`：对手从 i+k 开始比我多拿的最优差值
+- `total_k - dp[i + k]`：我拿了 total，对手之后比我多 dp[i+k]，所以我比对手多的就是这个差
+
+### 举例：stones = [1, 2, 3]
+
+```
+dp[3] = 0                 （没石子了）
+dp[2] = 3 - dp[3] = 3     （取1个，多3分）
+dp[1] = max(2 - dp[2], 5 - dp[3]) = max(-1, 5) = 5
+dp[0] = max(1 - dp[1], 3 - dp[2], 6 - dp[3]) = max(-4, 0, 6) = 6
+```
+
+dp[0] = 6 > 0，Alice 赢。
+
+---
+
+## 初始化
+
+`dp[n] = dp[n+1] = dp[n+2] = 0`（没有石子可拿，差值为 0）
+
+实际代码中只需要 `dp[n] = 0`，因为内层循环的 `min(i+3, n)` 保证不会越界。
+
+---
+
+## total 的含义
+
+`total` 不是全局累加，而是每轮重置：
+
+```
+i = 5 时：
+    j = 5: total = stones[5]              → 取1个
+    j = 6: total = stones[5]+stones[6]    → 取2个
+    j = 7: total = stones[5]+..+stones[7] → 取3个
+
+i = 4 时：total 重置为 0，重新累加
+```
+
+始终表示"当前玩家这一轮取走的石子和"。
+
+---
+
+## 代码
+
+```python
+class Solution:
+    def stoneGameIII(self, stoneValue: List[int]) -> str:
+        n = len(stoneValue)
+        dp = [float('-inf')] * (n + 1)
+        dp[n] = 0
+
+        for i in range(n - 1, -1, -1):
+            total = 0
+            for j in range(i, min(i + 3, n)):
+                total += stoneValue[j]
+                dp[i] = max(dp[i], total - dp[j + 1])
+
+        if dp[0] == 0:
+            return "Tie"
+        return "Alice" if dp[0] > 0 else "Bob"
+```
+
+---
+
+## 和普通 dp 的对比
+
+| | 普通 dp | 本题 |
+|---|---------|------|
+| 方向 | 从前往后 | 从后往前 |
+| 已知起点 | `dp[0]` | `dp[n] = 0` |
+| 答案位置 | `dp[n]` | `dp[0]` |
+| 原因 | 前面的状态先确定 | 后面的局面先确定 |
+
+---
+
+## 易错点
+
+1. dp 初始化是 `[float('-inf')] * (n + 1)`，注意括号位置
+2. dp 存的是分数差，不是绝对分数，最后看正负判断胜负
+3. `total` 每次外层循环重置，不是全局累加
 ## 63 Unique Paths II
 ## 64 Minimum Path Sum
 ## 1049 Last Stone Weight II
