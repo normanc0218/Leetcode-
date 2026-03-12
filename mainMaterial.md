@@ -914,7 +914,105 @@ class Solution:
 ## 33 Search in Rotated Sorted Array
 ## 981 Time Based Key Value Store
 ## 4 Median of Two Sorted Arrays
+## 题意
 
+给定两个有序数组，找它们合并后的中位数，要求时间复杂度 O(log(m+n))。
+
+---
+
+## 核心思路：二分切割
+
+不需要真的合并数组。把两个数组各切一刀，使得左半边总共有 `(m+n+1)//2` 个元素，且左半边所有元素 ≤ 右半边所有元素。
+
+### 为什么在短数组上二分？
+
+对短数组（长度 m）二分，切割位置 `m_i` 确定后，长数组的切割位置 `n_i = med_len - m_i` 也就确定了。在短数组上二分保证 `n_i` 不会越界。
+
+---
+
+## 切割后的四个值
+
+```
+nums1:  [..., left_1 | right_1, ...]
+nums2:  [..., left_2 | right_2, ...]
+```
+
+| 变量 | 含义 | 越界处理 |
+|------|------|----------|
+| `left_1 = nums1[m_i - 1]` | nums1 左半边最大值 | `m_i == 0` 时取 `-inf` |
+| `left_2 = nums2[n_i - 1]` | nums2 左半边最大值 | `n_i == 0` 时取 `-inf` |
+| `right_1 = nums1[m_i]` | nums1 右半边最小值 | `m_i == m` 时取 `inf` |
+| `right_2 = nums2[n_i]` | nums2 右半边最小值 | `n_i == n` 时取 `inf` |
+
+---
+
+## 二分方向怎么记
+
+只需要交叉比较：
+
+- `left_1 > right_2`：nums1 给左半边太多了 → **r = m_i - 1**（往左缩）
+- `left_2 > right_1`：nums1 给左半边太少了 → **l = m_i + 1**（往右扩）
+- 否则：找到正确切割位置
+
+记忆：**谁大了就缩谁**。left_1 大了，缩 nums1 的右边界。
+
+---
+
+## 奇偶判断
+
+- **奇数**：中位数就一个，返回 `max(left_1, left_2)`
+- **偶数**：中位数是两个的平均，返回 `(max(left_1, left_2) + min(right_1, right_2)) / 2`
+
+注意 `(m+n) % 2 == 1` 是奇数，`== 0` 是偶数，别搞反。
+
+---
+
+## 代码
+
+```python
+class Solution:
+    def findMedianSortedArrays(self, nums1, nums2):
+        if len(nums1) > len(nums2):
+            nums1, nums2 = nums2, nums1
+        m, n = len(nums1), len(nums2)
+        med_len = (m + n + 1) // 2
+
+        l, r = 0, m
+        while l <= r:
+            m_i = (l + r) // 2
+            n_i = med_len - m_i
+
+            left_1 = nums1[m_i - 1] if m_i >= 1 else float('-inf')
+            left_2 = nums2[n_i - 1] if n_i >= 1 else float('-inf')
+            right_1 = nums1[m_i] if m_i < m else float('inf')
+            right_2 = nums2[n_i] if n_i < n else float('inf')
+
+            if left_1 > right_2:
+                r = m_i - 1
+            elif left_2 > right_1:
+                l = m_i + 1
+            else:
+                if (m + n) % 2:
+                    return max(left_1, left_2)
+                else:
+                    return (max(left_1, left_2) + min(right_1, right_2)) / 2
+```
+
+---
+
+## 易错点
+
+1. **始终在短数组上二分**，先 swap 保证 `len(nums1) <= len(nums2)`
+2. **二分方向**：`left_1 > right_2` 时缩右边界（r），不是扩左边界
+3. **奇偶搞反**：奇数返回一个值，偶数才求平均
+4. **越界处理**：四个边界值都要判断，用 `inf` / `-inf` 兜底
+
+---
+
+## 复杂度
+
+- 时间：O(log(min(m, n)))，只在短数组上二分
+- 空间：O(1)
 ## 206 Reverse Linked List
 ## 21 Merge Two Sorted Lists
 ## 143 Reorder List
@@ -3278,6 +3376,85 @@ class Solution:
 ## 70 Climbing Stairs
 ## 746 Min Cost Climbing Stairs
 ## 198 House Robber
+## 题意
+
+一排房子，每间有金额，不能偷相邻的两间，求最大金额。
+
+---
+
+## 核心思路
+
+对每间房子只有两个选择：偷或不偷。
+
+- **偷第 i 间**：不能偷第 i-1 间，收益 = `dp[i-2] + nums[i]`
+- **不偷第 i 间**：收益 = `dp[i-1]`
+
+取两者最大值。
+
+---
+
+## dp 定义
+
+`dp[i]` = 考虑前 i+1 间房子，能偷到的最大金额
+
+### 转移方程
+
+```
+dp[i] = max(dp[i-1], dp[i-2] + nums[i])
+```
+
+### 初始化
+
+- `dp[0] = nums[0]`（只有一间，直接偷）
+- `dp[1] = max(nums[0], nums[1])`（两间选大的）
+
+---
+
+## 代码
+
+```python
+class Solution:
+    def rob(self, nums):
+        if len(nums) == 1:
+            return nums[0]
+
+        dp = [0] * len(nums)
+        dp[0] = nums[0]
+        dp[1] = max(nums[0], nums[1])
+
+        for i in range(2, len(nums)):
+            dp[i] = max(dp[i - 1], dp[i - 2] + nums[i])
+
+        return dp[len(nums) - 1]
+```
+
+---
+
+## 可选优化：空间 O(1)
+
+dp[i] 只依赖前两个值，可以用两个变量代替数组：
+
+```python
+prev2, prev1 = nums[0], max(nums[0], nums[1])
+for i in range(2, len(nums)):
+    prev2, prev1 = prev1, max(prev1, prev2 + nums[i])
+return prev1
+```
+
+---
+
+## 易错点
+
+1. 别忘了处理 `len(nums) == 1` 的边界
+2. `dp[1]` 是 `max(nums[0], nums[1])`，不是 `nums[1]`
+3. 返回 `dp[len(nums)-1]`，不是 `dp[len(nums)]`
+
+---
+
+## 复杂度
+
+- 时间：O(n)
+- 空间：O(n)，优化后 O(1)
 ## 213 House Robber II
 ## 5 Longest Palindromic Substring
 ## 题目核心
