@@ -405,7 +405,7 @@ mid = (left + right) >> 1
 - [973 K Closest Points to Origin](mainMaterial.md#973-k-closest-points-to-origin)
 - [621 Task Scheduler](mainMaterial.md#621-task-scheduler)
 - [295 Find Median from Data Stream](mainMaterial.md#295-find-median-from-data-stream)
-
+- [355 Design Twitter](mainMaterial.md#355-design-twitter)
 ## 10. Backtracking
 - [78 Subsets](mainMaterial.md#78-subsets)
 - [39 Combination Sum](mainMaterial.md#39-combination-sum)

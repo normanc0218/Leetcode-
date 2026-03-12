@@ -808,6 +808,101 @@ class Solution:
 **提示**: 这题的精髓在于理解"为什么移动短边"，这是贪心思想的经典应用！💪
 ## 42 Trapping Rain Water
 
+## 题意
+
+给定一组柱子高度，计算能接多少雨水。
+
+---
+
+## 核心思路：单调栈横着算水
+
+维护一个**递减的单调栈**。当遇到比栈顶高的柱子时，说明形成了凹槽，可以接水。每次弹出一个凹槽底部，算那一层的水量。
+
+---
+
+## 每一步在做什么
+
+```
+遇到 height[i] >= height[栈顶]：
+    弹出栈顶 → 这是凹槽底部 (mid)
+    如果栈还有元素：
+        左边界 = height[新栈顶]
+        右边界 = height[i]
+        h = min(左, 右) - mid    ← 水的高度
+        w = i - 新栈顶 - 1       ← 水的宽度
+        res += h * w
+```
+
+三个角色：左边界（新栈顶）、底部（弹出的）、右边界（当前 i）。
+
+---
+
+## 手算示例
+
+```
+height: [0, 2, 0, 3, 1, 0, 1, 3, 2, 1]
+         0  1  2  3  4  5  6  7  8  9
+
+i=0: push 0, 栈 [0]
+i=1: 弹出 0(底部=0), 栈空无左边界, push 1, 栈 [1]
+i=2: push 2, 栈 [1,2]
+i=3: 弹出 2(底部=0), 左=2 右=3, h=2 w=1, +2, res=2
+     弹出 1(底部=2), 栈空无左边界
+     push 3, 栈 [3]
+i=4: push 4, 栈 [3,4]
+i=5: push 5, 栈 [3,4,5]
+i=6: 弹出 5(底部=0), 左=1 右=1, h=1 w=1, +1, res=3
+     弹出 4(底部=1), 左=3 右=1, h=0 w=2, +0, res=3
+     push 6, 栈 [3,6]
+i=7: 弹出 6(底部=1), 左=3 右=3, h=2 w=3, +6, res=9
+     弹出 3(底部=3), 栈空无左边界
+     push 7, 栈 [7]
+i=8: push 8, 栈 [7,8]
+i=9: push 9, 栈 [7,8,9]
+
+最终 res = 9
+```
+
+---
+
+## 代码
+
+```python
+class Solution:
+    def trap(self, height: List[int]) -> int:
+        stack = []
+        res = 0
+
+        for i in range(len(height)):
+            while stack and height[i] >= height[stack[-1]]:
+                index = stack.pop()
+                mid = height[index]
+                if stack:
+                    right = height[i]
+                    left = height[stack[-1]]
+                    h = min(right, left) - mid
+                    w = i - stack[-1] - 1
+                    res += h * w
+            stack.append(i)
+
+        return res    # 注意缩进在 for 循环外面
+```
+
+---
+
+## 为什么用单调栈
+
+- 栈维护递减序列，保证弹出时能找到左边界
+- 每个元素最多入栈一次、出栈一次，时间 O(n)
+- 横着一层一层算水，和双指针竖着算是两种不同的视角
+
+---
+
+## 易错点
+
+1. `return res` 要在 for 循环外面，缩进错了会第一轮就返回
+2. 弹出底部后要检查 `if stack`，栈空说明没有左边界，不能接水
+3. 栈里存的是**下标**不是高度，因为需要算宽度 `i - stack[-1] - 1`
 ## 121 Best Time to Buy and Sell Stock
 ## 3 Longest Substring Without Repeating Characters
 ## 424 Longest Repeating Character Replacement
@@ -909,6 +1004,87 @@ class Solution:
 
 ## 704 Binary Search
 ## 74 Search a 2D Matrix
+## 题意
+
+在一个每行递增且下一行首元素大于上一行末元素的矩阵中，搜索目标值。
+
+---
+
+## 核心思路：两次二分
+
+1. **第一次二分**：找到 target 所在的行
+2. **第二次二分**：在该行中找 target
+
+---
+
+## 第一次二分怎么定位行
+
+检查 target 是否落在 `matrix[mid][0] <= target <= matrix[mid][-1]` 范围内：
+
+- 是 → 找到目标行，break
+- `matrix[mid][-1] < target` → target 在更下面的行，`l = mid + 1`
+- `matrix[mid][0] > target` → target 在更上面的行，`r = mid - 1`
+- 循环正常结束（没 break）→ 不存在目标行，返回 False
+
+---
+
+## while...else 语法
+
+```python
+while l <= r:
+    ...
+    if 找到了:
+        break
+    ...
+else:
+    return False  # 循环没有被 break 打断时执行
+```
+
+`else` 块只在循环**正常结束**时执行，被 break 跳出时不执行。用它可以优雅地处理"没找到"的情况。
+
+---
+
+## 代码
+
+```python
+class Solution:
+    def searchMatrix(self, matrix, target):
+        m = len(matrix)
+        n = len(matrix[0])
+
+        l, r = 0, m - 1
+        while l <= r:
+            mid = (r + l) // 2
+            if matrix[mid][0] <= target <= matrix[mid][-1]:
+                row = mid
+                break
+            if matrix[mid][-1] > target:
+                r = mid - 1
+            else:
+                l = mid + 1
+        else:
+            return False
+
+        l, r = 0, n - 1
+        while l <= r:
+            mid = (r + l) // 2
+            if matrix[row][mid] == target:
+                return True
+            if matrix[row][mid] > target:
+                r = mid - 1
+            else:
+                l = mid + 1
+
+        return False
+```
+
+---
+
+## 易错点
+
+1. 第一次二分找不到目标行时要返回 False，否则 `matrix[row]` 会报错（row 未定义）
+2. 用 `while...else` 或在第二次二分前加越界检查都可以处理这个边界
+3. 时间复杂度 O(log m + log n) = O(log(m×n))
 ## 875 Koko Eating Bananas
 ## 153 Find Minimum in Rotated Sorted Array
 ## 33 Search in Rotated Sorted Array
@@ -2441,7 +2617,179 @@ for i in range(start, len(candidates)):
 **空间复杂度**: O(T/M)
 - 递归栈深度 = 最长组合长度
 ---
+# 355 Design Twitter
+
+## 题意
+
+设计一个简化版 Twitter，支持发推、关注、取关、获取最新 10 条动态。
+
+---
+
+## 数据结构选择
+
+| 需求 | 数据结构 | 原因 |
+|------|----------|------|
+| 关注关系 | `defaultdict(set)` | unfollow 需要 O(1) 删除，set 天然去重 |
+| 推文列表 | `defaultdict(list)` | append 按时间有序，末尾就是最新的 |
+| 时间戳 | `self.time` 计数器 | 每发一条 +1，用来比较新旧 |
+| 全局 Heap | ❌ 不需要 | 只在 getNewsFeed 时临时创建 |
+
+---
+
+## getNewsFeed 核心：合并 K 个有序链表
+
+### 朴素做法
+
+所有关注的人的推文全部入堆，堆大小 = 总推文数。能过但不高效。
+
+### 优化做法
+
+每个人只放最新一条进堆，pop 出来后再从那个人补一条。堆始终最多 K 个元素（K = 关注人数）。
+
+```
+堆里：
+[-100, tweetId, 用户A, index=5]   ← A 剩余最新的
+[-95,  tweetId, 用户B, index=2]   ← B 剩余最新的
+[-80,  tweetId, 用户C, index=9]   ← C 剩余最新的
+
+pop 出 -100（全局最新），然后从 A 的 index=4 补一条进来
+```
+
+列表管单人顺序，堆管全局排序，两者配合。
+
+### 为什么 index 从末尾开始
+
+`postTweet` 用 `append`，列表天然按时间排列，末尾最新。`index = len - 1` 开始，每次 `-1` 就是从新到旧。
+
+---
+
+## 代码
+
+```python
+class Twitter:
+    def __init__(self):
+        self.time = 0
+        self.followMap = defaultdict(set)
+        self.tweetMap = defaultdict(list)
+
+    def postTweet(self, userId, tweetId):
+        self.time += 1
+        self.tweetMap[userId].append((self.time, tweetId))
+
+    def getNewsFeed(self, userId):
+        heap = []
+        self.followMap[userId].add(userId)       # 自己也算
+
+        # 每个人只放最新一条进堆
+        for fid in self.followMap[userId]:
+            if fid in self.tweetMap and self.tweetMap[fid]:
+                tweets = self.tweetMap[fid]
+                index = len(tweets) - 1
+                time, tweetId = tweets[index]
+                heapq.heappush(heap, (-time, tweetId, fid, index))
+                # 存: [-时间戳, 推文ID, 来自谁, 列表下标]
+
+        res = []
+        while heap and len(res) < 10:
+            time, tweetId, fid, index = heapq.heappop(heap)  # 全局最新
+            res.append(tweetId)
+            if index > 0:                                      # 那个人还有更早的
+                index -= 1
+                time, tweetId = self.tweetMap[fid][index]
+                heapq.heappush(heap, (-time, tweetId, fid, index))
+        return res
+
+    def follow(self, followerId, followeeId):
+        self.followMap[followerId].add(followeeId)
+
+    def unfollow(self, followerId, followeeId):
+        if followeeId in self.followMap[followerId]:
+            self.followMap[followerId].remove(followeeId)
+```
+
+---
+
+## Python 最大堆技巧
+
+`heapq` 只有最小堆，时间戳取负就变成最大堆：`-time` 最小的就是 `time` 最大的（最新的）。
+
+---
+
+## 易错点
+
+1. getNewsFeed 要包含自己的推文：`followMap[userId].add(userId)`
+2. `self.tweetMap` 不要忘了 `self`
+3. unfollow 时要先检查是否存在，否则 `remove` 会抛异常（或用 `discard`）
+4. 堆里存 index 和 fid，才能在 pop 后知道从哪里补下一条
 ## 46 Permutations
+
+
+## 题意
+
+给定一组不重复的数字，返回所有可能的全排列。
+
+---
+
+## 核心思路：回溯
+
+每一步从未使用的数字中选一个加入 path，选完所有数字就得到一个排列。
+
+---
+
+## 回溯三要素
+
+| 要素 | 本题 |
+|------|------|
+| 选择 | 从未使用的数字中选一个 |
+| 约束 | `used[j]` 标记已使用，不能重复选 |
+| 终止 | `len(path) == len(nums)` |
+
+---
+
+## 代码
+
+```python
+class Solution:
+    def permute(self, nums):
+        res = []
+        used = [False] * len(nums)
+
+        def dfs(path):
+            if len(path) == len(nums):
+                res.append(path.copy())
+                return
+
+            for j in range(len(nums)):
+                if used[j]:
+                    continue
+                path.append(nums[j])
+                used[j] = True
+                dfs(path)
+                path.pop()
+                used[j] = False
+
+        dfs([])
+        return res
+```
+
+---
+
+## 三个重点
+
+1. **used 数组**：标记哪些元素已经用了，避免重复使用同一个元素
+2. **path.copy()**：收集结果时必须拷贝，否则回溯会改掉 path，最终全是空列表
+3. **做选择和撤销完全对称**：`append/pop`、`True/False` 成对出现
+
+---
+
+## 和 N 皇后的对比
+
+| | 全排列 | N 皇后 |
+|---|--------|--------|
+| 选择 | 选一个未使用的数字 | 选一个合法的列 |
+| 约束 | `used[j]` | 列 + 两条对角线 |
+| 撤销 | `pop` + `used = False` | `pop` + `remove` 三个 set |
+| 模板 | 完全一样 | 完全一样 |
 ## 90 Subsets II
 ## 40 Combination Sum II
 ## 79 Word Search

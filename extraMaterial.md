@@ -24,7 +24,64 @@
 ## 658 Find K Closest Elements
 ## 682 Baseball Game
 ## 225 Implement Stack Using Queues
-## 232 Implement Queue using Stacks
+# 225. Implement Stack using Queues — 笔记
+
+## 题意
+
+用队列实现栈的 push、pop、top、empty 操作。
+
+---
+
+## 核心技巧
+
+用单个 deque，每次 push 后把前面的元素轮转到后面，保证最新元素永远在队头。
+
+```
+push(4)，队列原本是 [3, 2, 1]：
+    append(4)  → [3, 2, 1, 4]
+    轮转 3 次  → [4, 3, 2, 1]
+```
+
+这样 `popleft()` 就等于栈的 pop。
+
+---
+
+## 为什么轮转 len - 1 次而不是 len 次？
+
+append 之后新元素已经在队列里，长度包含了它。轮转 `len - 1` 次刚好把它前面的元素全部移到后面，跳过它自己。用 `len` 次的话新元素也会被转一圈回原位，顺序就错了。
+
+---
+
+## 代码
+
+```python
+class MyStack:
+    def __init__(self):
+        self.q = deque()
+
+    def push(self, x: int) -> None:
+        self.q.append(x)
+        for _ in range(len(self.q) - 1):
+            self.q.append(self.q.popleft())
+
+    def pop(self) -> int:
+        return self.q.popleft()
+
+    def top(self) -> int:
+        return self.q[0]
+
+    def empty(self) -> bool:
+        return len(self.q) == 0
+```
+
+---
+
+## 复杂度
+
+| 操作 | 时间 |
+|------|------|
+| push | O(n)（轮转） |
+| pop / top / empty | O(1) |
 ## 232 Implement Queue using Stacks
 
 两个栈：`sin` 负责入，`sout` 负责出。`sout` 空了才把 `sin` 全部倒过去，均摊 O(1)。
@@ -117,6 +174,116 @@ Diag2-> r+c
 ## 997 Find the Town Judge
 ## 752 Open The Lock
 ## 1462 Course Schedule IV
+
+## 题意
+
+给定课程的先修关系和一组查询 `[u, v]`，判断 u 是否是 v 的先修课（直接或间接）。
+
+---
+
+## 解法一：BFS 拓扑排序 + 传递可达关系（推荐）
+
+在 Course Schedule 的拓扑排序基础上，只多加两行核心逻辑。
+
+### 核心思路
+
+按拓扑顺序处理时，node 的所有先修课已经算好了。处理 node → nei 这条边时：
+
+- node 是 nei 的先修 → `reachable[nei].add(node)`
+- node 的所有先修也是 nei 的先修 → `reachable[nei] |= reachable[node]`
+
+### `|=` 是什么
+
+集合的并集更新。`a |= b` 等价于 `a = a | b`，把 b 的所有元素合并到 a 里。
+
+### 代码
+
+```python
+class Solution:
+    def checkIfPrerequisite(self, numCourses, prerequisites, queries):
+        graph = defaultdict(list)
+        indegree = [0] * numCourses
+        reachable = [set() for _ in range(numCourses)]
+
+        for pre, crs in prerequisites:
+            graph[pre].append(crs)
+            indegree[crs] += 1
+
+        q = deque()
+        for c in range(numCourses):
+            if indegree[c] == 0:
+                q.append(c)
+
+        while q:
+            node = q.popleft()
+            for nei in graph[node]:
+                reachable[nei].add(node)
+                reachable[nei] |= reachable[node]
+                indegree[nei] -= 1
+                if indegree[nei] == 0:
+                    q.append(nei)
+
+        return [u in reachable[v] for u, v in queries]
+```
+
+时间复杂度：O(V² + E)
+
+---
+
+## 解法二：DFS + 手动缓存
+
+对每个查询跑 DFS，用字典缓存避免重复计算。
+
+### 代码
+
+```python
+class Solution:
+    def checkIfPrerequisite(self, numCourses, prerequisites, queries):
+        adj = [[] for _ in range(numCourses)]
+        for pre, crs in prerequisites:
+            adj[pre].append(crs)
+
+        cache = {}
+
+        def dfs(node, target):
+            if node == target:
+                return True
+            if (node, target) in cache:
+                return cache[(node, target)]
+
+            for nei in adj[node]:
+                if dfs(nei, target):
+                    cache[(node, target)] = True
+                    return True
+
+            cache[(node, target)] = False
+            return False
+
+        return [dfs(u, v) for u, v in queries]
+```
+
+时间复杂度：O(V × (V + E))，比 BFS 慢
+
+---
+
+## 两种解法对比
+
+| | BFS 拓扑排序 | DFS + 缓存 |
+|---|---|---|
+| 核心操作 | 一次遍历传递可达关系 | 每个查询跑 DFS |
+| 时间 | O(V² + E) | O(V × (V + E)) |
+| 优点 | 更高效，代码简洁 | 思路直观 |
+| 和 Course Schedule 的关系 | 原代码多加两行 | 需要额外写 DFS |
+
+V = numCourses（顶点数），E = len(prerequisites)（边数）
+
+---
+
+## 易错点
+
+1. 不加缓存的 DFS 会超时（TLE）
+2. 建图方向和 indegree 要配套：`graph[pre].append(crs)` 对应 `indegree[crs] += 1`
+3. `reachable` 要用 `[set() for ...]` 初始化，不能用 `[set()] * n`（共享同一个 set）
 ## 721 Accounts Merge
 ## 399 Evaluate Division
 ## 310 Minimum Height Trees
