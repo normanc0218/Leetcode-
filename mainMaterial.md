@@ -3358,201 +3358,290 @@ dfs(0, [])
 每种数量只出现一次，while 保证了这一点。
 
 ## 40 Combination Sum II
-## 79 Word Search
 
+## 核心思路
 
----
+从排序后的数组中选元素，使总和等于 target。每个元素只能用一次，结果不能重复。
 
-## 🔹 Pattern
-**回溯 (Backtracking) + DFS + 需要撤销状态**
+去重关键：**排序 + 跳过同一层的重复元素**。
 
----
-
-## 💡 Core Idea
-
-**关键洞察：在二维网格中寻找路径，需要回溯以尝试不同路径**
-
-- **目标**：在网格中找到一条路径拼出目标单词
-- **限制**：每个格子只能使用一次（在同一条路径中）
-- **回溯关键**：
-  - `visited.add()` - 标记当前路径占用的格子
-  - `visited.remove()` - 回溯时释放格子，让其他路径可以使用
-  
-- **为什么需要 remove？**
-  - 因为同一个格子可能出现在**不同的路径尝试**中
-  - 路径1失败了，要释放格子让路径2使用
-
-**与 Pacific Atlantic 的区别**：
-- Word Search：寻找**特定路径** → 需要回溯（add + remove）
-- Pacific Atlantic：标记**所有可达格子** → 不需要回溯（只add）
-
----
-
-## 🧩 Pseudo Code
-
-```text
-function exist(board, word):
-    m = rows, n = cols
-    visited = set()
-    directions = [(0,1), (1,0), (0,-1), (-1,0)]
-    
-    function dfs(i, j, index):
-        // 终止条件：找到完整单词
-        if index == len(word):
-            return True
-        
-        // 边界检查 + 字符不匹配 + 已访问
-        if i < 0 or j < 0 or i >= m or j >= n:
-            return False
-        if board[i][j] != word[index]:  // ⚠️ 注意是 !=
-            return False
-        if (i, j) in visited:
-            return False
-        
-        // 1. 做选择：标记当前格子为已访问
-        add (i, j) to visited
-        
-        // 2. 递归：尝试四个方向
-        for each direction (dx, dy):
-            nx = i + dx
-            ny = j + dy
-            if dfs(nx, ny, index + 1):
-                return True  // 找到了立即返回
-        
-        // 3. 撤销选择：回溯，释放格子
-        remove (i, j) from visited
-        
-        return False
-    
-    // 遍历所有格子作为起点
-    for i in 0 to m-1:
-        for j in 0 to n-1:
-            if dfs(i, j, 0):
-                return True
-    
-    return False
-```
-
----
-
-## ✅ Complete Code
+## 解法一：for 循环 + continue
 
 ```python
 class Solution:
-    def exist(self, board: List[List[str]], word: str) -> bool:
-        if not board or not board[0]:
-            return False
-        
-        m, n = len(board), len(board[0])
+    def combinationSum2(self, candidates, target):
+        path = []
+        res = []
+        candidates.sort()
+
+        def dfs(i, cur):
+            if cur == target:
+                res.append(path[:])
+                return
+            for j in range(i, len(candidates)):
+                if j > i and candidates[j] == candidates[j-1]:
+                    continue
+                if cur + candidates[j] > target:
+                    break
+                path.append(candidates[j])
+                dfs(j + 1, cur + candidates[j])
+                path.pop()
+
+        dfs(0, 0)
+        return res
+```
+
+### j > i 的含义
+
+同一层里，第一个重复元素可以用，后面的跳过：
+
+```
+candidates = [1, 2, 2, 3]，i=1
+
+j=1: candidates[1]=2 → 第一个2，可以用
+j=2: candidates[2]=2, j>i 且等于前一个 → 跳过
+j=3: candidates[3]=3 → 不重复，可以用
+```
+
+### 走一遍 [2,2,2,2,2,2] target=8
+
+```
+dfs(0, 0):
+  j=0: 选2 → dfs(1, 2)
+    j=1: 选2 → dfs(2, 4)
+      j=2: 选2 → dfs(3, 6)
+        j=3: 选2 → dfs(4, 8) == target ✓ → [2,2,2,2]
+        j=4: j>3 且重复 → skip
+        j=5: skip
+      j=3: j>2 且重复 → skip
+    j=2: j>1 且重复 → skip
+  j=1: j>0 且重复 → skip
+```
+
+每一层第一个重复元素可以用，所以能连续选四个 2，但不会产生重复组合。
+
+## 解法二：选或不选 + while 跳过
+
+```python
+class Solution:
+    def combinationSum2(self, candidates, target):
+        ans = []
+        candidates.sort()
+
+        def dfs(index, path, total):
+            if total == target:
+                ans.append(path.copy())
+                return
+            if total > target or index == len(candidates):
+                return
+
+            # 选当前元素
+            path.append(candidates[index])
+            dfs(index + 1, path, total + candidates[index])
+            path.pop()
+
+            # 不选当前元素，跳过所有相同的
+            while index + 1 < len(candidates) and candidates[index + 1] == candidates[index]:
+                index += 1
+            dfs(index + 1, path, total)
+
+        dfs(0, [], 0)
+        return ans
+```
+
+### while 跳过的含义
+
+不选当前元素时，后面所有相同的也必须不选，否则会重复：
+
+```
+candidates = [2, 2, 3]
+
+不选第1个2 → 选第2个2 → [2]
+选第1个2 → 不选第2个2 → [2]  ← 重复！
+
+加了 while：不选第1个2 → 跳过第2个2 → 所有2都不选
+```
+
+## 两种模板对比
+
+| | for 循环 + continue | 选或不选 + while |
+|---|---|---|
+| 分支 | 每层选一个往下递归 | 每个元素两个分支 |
+| 去重 | 同一层 continue 跳过重复 | 不选时 while 跳过所有相同 |
+| 适用 | 组合类问题更常见 | 子集类问题更直觉 |
+
+两种都能 AC，选更熟悉的就行。
+
+## 必须排序
+
+去重依赖相同元素相邻，不排序就无法跳过：
+
+```
+不排序: [1, 7, 1]
+选第1个1，不选第3个1 → [1]
+不选第1个1，选第3个1 → [1]  ← 不相邻，跳不过
+
+排序后: [1, 1, 7]
+while 或 continue 都能正确跳过
+```
+
+## 复杂度
+
+- 时间：O(2ⁿ)，最坏情况尝试所有子集
+- 空间：O(n)，递归深度 + path
+## 79 Word Search
+
+## 核心思路
+
+从每个格子出发，DFS 尝试匹配 word 的每个字符。用 visited 防止同一条路径重复使用格子。
+
+## 推荐模板：检查放在 dfs 开头
+
+```python
+class Solution:
+    def exist(self, board, word):
+        direction = [(0,1),(1,0),(0,-1),(-1,0)]
         visited = set()
-        directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
-        
-        def dfs(i, j, index):
-            # 终止条件：找到完整单词
+
+        def dfs(r, c, index):
             if index == len(word):
                 return True
-            
-            # 边界检查、字符不匹配、已访问
-            if (i < 0 or j < 0 or i >= m or j >= n or 
-                board[i][j] != word[index] or  # ⚠️ 是 != 不是 ==
-                (i, j) in visited):
+            if r < 0 or r >= len(board) or c < 0 or c >= len(board[0]):
                 return False
-            
-            # 1. 做选择：标记访问
-            visited.add((i, j))
-            
-            # 2. 递归：尝试四个方向
-            for dx, dy in directions:
-                nx, ny = i + dx, j + dy
-                if dfs(nx, ny, index + 1):
+            if (r, c) in visited:
+                return False
+            if board[r][c] != word[index]:
+                return False
+
+            visited.add((r, c))
+            for i, j in direction:
+                if dfs(r+i, c+j, index+1):
                     return True
-            
-            # 3. 撤销选择：回溯（释放格子）
-            visited.remove((i, j))
-            
+            visited.remove((r, c))
             return False
-        
-        # 遍历所有起点
-        for i in range(m):
-            for j in range(n):
+
+        for i in range(len(board)):
+            for j in range(len(board[0])):
                 if dfs(i, j, 0):
                     return True
-        
         return False
 ```
 
----
+## 为什么把检查放在 dfs 开头
 
----
-## 🎯 复杂度分析
-
-**时间复杂度**: O(m × n × 4^L)
-- m × n：遍历所有起点
-- 4^L：每个位置最多4个方向，最多递归L层（L = word长度）
-
-**空间复杂度**: O(L)
-- 递归栈深度 = 单词长度
-- visited 最多存 L 个坐标
-
-
----
-
-## 🧠 回溯模板（寻路问题）
+所有检查集中在一个地方，调用方只管调用：
 
 ```python
-def backtrack_path(位置, 路径状态, 目标):
-    # 终止条件
-    if 达到目标:
-        return True
-    
-    # 剪枝条件
-    if 不合法:
-        return False
-    
-    # 1. 做选择（标记占用）
-    visited.add(位置)
-    
-    # 2. 递归尝试
-    for 下一个位置 in 所有可能:
-        if backtrack_path(下一个位置, 新状态, 目标):
-            return True
-    
-    # 3. 撤销选择（释放占用）⚠️ 关键！
-    visited.remove(位置)
-    
+# 外层干干净净
+if dfs(i, j, 0):
+    return True
+
+# dfs 内部统一处理
+def dfs(r, c, index):
+    if ...: return False      # 不合法直接返回
+    visited.add((r, c))       # 自己 add
+    ...
+    visited.remove((r, c))    # 自己 remove
     return False
 ```
 
----
+如果把检查放在调用前（递归邻居之前），visited 的 add/remove 会分散在外层和 dfs 内部两个地方，容易漏。
 
-## 🎯 Key Points
+## dfs 结构详解
+
+```python
+def dfs(r, c, index):
+    # 1. 成功条件
+    if index == len(word): return True
+
+    # 2. 所有失败条件
+    if 越界: return False
+    if 访问过: return False
+    if 字符不匹配: return False
+
+    # 3. 标记当前格子
+    visited.add((r, c))
+
+    # 4. 递归四个方向
+    for i, j in direction:
+        if dfs(r+i, c+j, index+1):
+            return True
+
+    # 5. 回溯
+    visited.remove((r, c))
+    return False
+```
+
+## 走一遍示例
 
 ```
-✅ 寻路问题 → 需要回溯（add + remove）
-✅ 字符不匹配才返回False（!= 不是 ==）
-✅ 必须遍历所有格子作为起点
-✅ 递归返回值要用 if 判断
-✅ visited 代表"当前路径占用的格子"
+board:        word = "ABC"
+A  B  E
+C  F  G
+
+dfs(0,0,0): board[0][0]='A'==word[0] ✓
+  visited: {(0,0)}
+  dfs(0,1,1): board[0][1]='B'==word[1] ✓
+    visited: {(0,0),(0,1)}
+    dfs(0,2,2): board[0][2]='E'!=word[2] → False
+    dfs(1,1,2): board[1][1]='F'!=word[2] → False
+    dfs(0,0,2): (0,0) in visited → False
+    dfs(-1,1,2): 越界 → False
+    回溯 remove (0,1)
+  dfs(1,0,1): board[1][0]='C'!=word[1] → False
+  dfs(-1,0,1): 越界 → False
+  dfs(0,-1,1): 越界 → False
+  回溯 remove (0,0)
+  return False
+
+dfs(0,1,0): board[0][1]='B'!=word[0] → False
+...继续尝试其他起点
 ```
 
----
+## 常见 bug
 
-## 📝 快速记忆
+**1. visited 的 add/remove 不对称**
 
-### **回溯三步曲**
-```
-1. 标记访问: visited.add((i, j))
-2. 尝试方向: if dfs(...): return True
-3. 撤销标记: visited.remove((i, j))  ← 关键！
+```python
+# 错误：add 邻居而不是自己
+visited.add((r+i, c+j))
+
+# 正确：add 自己
+visited.add((r, c))
 ```
 
-### **判断条件**
+**2. for 循环结束没有 return False**
+
+```python
+# 错误：邻居都失败后函数没有返回值（隐式返回 None）
+for i, j in direction:
+    if dfs(r+i, c+j, index+1):
+        return True
+# 缺了 return False
+
+# 正确
+visited.remove((r, c))
+return False    # ← 必须有
 ```
-越界？ → False
-不匹配？ → False  ⚠️ 注意是 !=
-访问过？ → False
+
+**3. 外层 add 了 visited 但没 remove**
+
+```python
+# 错误
+visited.add((i, j))
+if dfs(i, j, 0):
+    return True
+# 漏了 visited.remove((i, j))
+
+# 解决方案：用推荐模板，外层不管 visited
+if dfs(i, j, 0):
+    return True
 ```
----
+
+## 复杂度
+
+- 时间：O(m × n × 4^L)，L 是 word 长度，每个格子出发最多 4 个方向递归 L 层
+- 空间：O(L)，递归深度 + visited 大小
 
 **提示**: 回溯的关键在于"撤销"，寻路问题几乎都需要回溯！💪
 ## 131 Palindrome Partitioning
