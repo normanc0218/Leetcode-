@@ -906,6 +906,92 @@ class Solution:
 ## 121 Best Time to Buy and Sell Stock
 ## 3 Longest Substring Without Repeating Characters
 ## 424 Longest Repeating Character Replacement
+## 核心公式
+
+```
+窗口长度 - 窗口内最多字符次数 ≤ k → 合法
+```
+
+含义：保留出现最多的字符，剩下的全部替换。`max_v` 就是"你决定保留哪个字符"。
+
+```
+窗口: A A B A B
+max_v = 3 (A出现3次)
+
+保留: A A _ A _   ← 保留所有A
+替换: _ _ B _ B   ← 需要替换2个，2 ≤ k 就合法
+```
+
+选出现最多的保留，需要替换的最少，窗口能撑到最大。
+
+## 最优解法（if + max_v 只增不减）
+
+```python
+class Solution:
+    def characterReplacement(self, s: str, k: int) -> int:
+        hashmap = defaultdict(int)
+        res = 0
+        l = 0
+        max_v = 0
+        for r in range(len(s)):
+            hashmap[s[r]] += 1
+            max_v = max(max_v, hashmap[s[r]])
+            if r - l + 1 - max_v > k:
+                hashmap[s[l]] -= 1
+                l += 1
+            res = max(res, r - l + 1)
+        return res
+```
+
+## 为什么用 if 而不是 while
+
+`max_v` 只增不减，所以窗口永远不会缩小，每次最多收缩一步。
+
+```
+while 版本窗口大小变化: 3 → 4 → 3 → 2 → 4 → 5  （会缩小再变大）
+if 版本窗口大小变化:    3 → 4 → 4 → 4 → 4 → 5  （只扩大或平移）
+```
+
+窗口不缩小，只是往右滑，等到遇到更好的情况才扩大。最终 `res` 一样。
+
+## 为什么 max_v 不需要精确维护
+
+收缩时 `max_v` 可能偏大（没更新），但这只会让窗口保持原大小不收缩，不会让它变得更大。`res` 只在 `max_v` 真正变大时才更新，那时 `max_v` 是准确的。
+
+```
+max_v 准确 → 窗口可能扩大 → 更新 res ✓
+max_v 偏大 → 窗口不收缩，保持原大小 → res 不变，无害
+max_v 偏小 → 不可能，因为只取 max 不减少
+```
+
+## while 版本（也正确，但稍慢）
+
+```python
+class Solution:
+    def characterReplacement(self, s: str, k: int) -> int:
+        hashmap = defaultdict(int)
+        res = 0
+        l = 0
+        for r in range(len(s)):
+            hashmap[s[r]] += 1
+            while r - l + 1 - max(hashmap.values()) > k:
+                hashmap[s[l]] -= 1
+                l += 1
+            res = max(res, r - l + 1)
+        return res
+```
+
+区别：每次收缩要调用 `max(hashmap.values())`（O(26)），在 while 里可能调用多次。
+
+## 两种写法对比
+
+| | if 版本 | while 版本 |
+|---|---|---|
+| 时间 | O(n)，每步 O(1) | O(n)，每步 O(26) |
+| 窗口行为 | 只扩大或平移 | 会缩小再扩大 |
+| max_v | 只增不减，O(1) 维护 | 每次重新算，O(26) |
+| 面试推荐 | ✓ 更简洁高效 | 也可以，但多解释 |
+
 ## 567 Permutation in String
 ## 76 Minimum Window Substring
 # 76. Minimum Window Substring — 笔记
@@ -996,6 +1082,82 @@ class Solution:
 4. 判断用 `==` 和 `<`，不是 `>=` 和 `<=`，避免 have 重复变化
 ## 20 Valid Parentheses
 ## 155 Min Stack
+
+## 题目在考什么
+
+不只是设计一个 stack，关键是 `getMin()` 要 O(1)。普通 stack 找最小值需要遍历 O(n)，所以需要额外的结构来"记住"每个状态下的最小值。
+
+## 核心思路
+
+用两个栈：主栈存数据，最小栈的栈顶始终是当前的最小值。
+
+```
+操作       主栈        最小栈
+push(5)   [5]         [5]        最小是5
+push(3)   [5,3]       [5,3]      最小变成3
+push(7)   [5,3,7]     [5,3,3]    最小还是3
+pop()     [5,3]       [5,3]      最小还是3
+pop()     [5]         [5]        最小变回5
+```
+
+两个栈同步 push 和 pop，`getMin()` 直接看最小栈栈顶，O(1)。
+
+## 完整代码
+
+```python
+class MinStack:
+
+    def __init__(self):
+        self.stack = []
+        self.min_stack = []
+
+    def push(self, val: int) -> None:
+        self.stack.append(val)
+        if self.min_stack:
+            val = min(self.min_stack[-1], val)
+        self.min_stack.append(val)
+
+    def pop(self) -> None:
+        self.stack.pop()
+        self.min_stack.pop()
+
+    def top(self) -> int:
+        return self.stack[-1]
+
+    def getMin(self) -> int:
+        return self.min_stack[-1]
+```
+
+## push 的关键逻辑
+
+```python
+if self.min_stack:
+    val = min(self.min_stack[-1], val)
+self.min_stack.append(val)
+```
+
+新的最小值 = min(之前的最小值, 新元素)。如果最小栈为空（第一个元素），直接 push。
+
+## 为什么不能用 hashset
+
+```
+push(3) → {3}
+push(3) → {3}    set 不存重复
+pop()   → {3}?   3 还在不在？不知道
+```
+
+set 不能存重复元素，也不知道顺序，无法跟踪栈的状态变化。
+
+## 复杂度
+
+| 操作 | 时间 | 空间 |
+|------|------|------|
+| push | O(1) | O(1) |
+| pop | O(1) | O(1) |
+| top | O(1) | O(1) |
+| getMin | O(1) | O(1) |
+| 总空间 | | O(n)（两个栈） |
+
 ## 150 Evaluate Reverse Polish Notation
 ## 22 Generate Parentheses
 ## 739 Daily Temperatures
@@ -1088,6 +1250,115 @@ class Solution:
 ## 875 Koko Eating Bananas
 ## 153 Find Minimum in Rotated Sorted Array
 ## 33 Search in Rotated Sorted Array
+## 核心思路
+
+旋转数组用 `nums[-1]` 分成两段，二分时判断 target 和 mid 分别在哪一段来决定搜索方向。
+
+```
+[4, 5, 6, 7, 0, 1, 2]
+ ↑---------↑  ↑-----↑
+ 左段(>nums[-1])  右段(≤nums[-1])
+```
+
+## is_blue 函数
+
+`is_blue(mid)` 返回 True = **答案 ≤ mid**（target 在 mid 左边或就是 mid）。
+
+```python
+def is_blue(mid):
+    if nums[mid] > nums[-1]:           # mid 在左段
+        return target > nums[-1] and nums[mid] >= target
+    else:                               # mid 在右段
+        return target > nums[-1] or nums[mid] >= target
+```
+
+注意：必须用 `>=` 不能用 `>`，否则 `nums[mid] == target` 时返回 False，会跳过答案。
+
+### 两个分支的含义
+
+**mid 在左段 (`nums[mid] > nums[-1]`)：**
+
+```
+[4, 5, 6, 7, 0, 1, 2]
+       ↑mid
+
+target 在 mid 左边（含 mid）的条件：
+  target 也在左段 (target > nums[-1])
+  并且 target ≤ nums[mid]
+```
+
+**mid 在右段 (`nums[mid] ≤ nums[-1]`)：**
+
+```
+[4, 5, 6, 7, 0, 1, 2]
+                ↑mid
+
+target 在 mid 左边（含 mid）的条件：
+  target 在左段 (target > nums[-1])  ← 左段整体在 mid 左边
+  或者 target ≤ nums[mid]            ← 在右段但不超过 mid
+```
+
+## 完整代码
+
+```python
+class Solution:
+    def search(self, nums, target):
+        def is_blue(mid):
+            if nums[mid] > nums[-1]:
+                return target > nums[-1] and nums[mid] >= target
+            else:
+                return target > nums[-1] or nums[mid] >= target
+
+        l = 0
+        r = len(nums)
+        while l < r:                    # 左闭右开 [l, r)
+            mid = l + (r - l) // 2
+            if is_blue(mid):
+                r = mid
+            else:
+                l = mid + 1
+
+        return l if l < len(nums) and nums[l] == target else -1
+```
+
+## 易错点
+
+**1. `>=` vs `>`**
+
+```python
+nums[mid] >= target   # 正确：mid == target 时返回 True，r = mid 保留答案
+nums[mid] > target    # 错误：mid == target 时返回 False，l = mid+1 跳过答案
+```
+
+**2. 返回值检查边界**
+
+```python
+# 错误：r 可能等于 len(nums)，越界
+return nums[r] if nums[r] == target else -1
+
+# 正确：检查边界
+return l if l < len(nums) and nums[l] == target else -1
+```
+
+## 验证
+
+`nums = [4, 5, 6, 7, 0, 1, 2]`，`target = 5`，`mid = 3`（值为 7）：
+
+```
+nums[mid]=7 > nums[-1]=2 → 左段
+return 5 > 2 and 7 >= 5 → True
+r = mid → 往左搜 ✓
+```
+
+`nums = [1]`，`target = 1`，`mid = 0`（值为 1）：
+
+```
+nums[mid]=1 > nums[-1]=1? 否 → 右段
+return 1 > 1 or 1 >= 1 → True
+r = mid = 0 → l == r = 0
+nums[0] == 1 → 返回 0 ✓
+```
+
 ## 981 Time Based Key Value Store
 ## 4 Median of Two Sorted Arrays
 ## 题意
@@ -1425,6 +1696,98 @@ class Solution:
 ## 141 Linked List Cycle
 ## 138 Copy List With Random Pointer
 ## 23 Merge k Sorted Lists
+
+## 核心思路
+
+堆里始终维护 k 个节点（每个链表一个），每次 pop 最小的接到结果上，再把它的 next push 进去。
+
+```
+lists: 1→4→5, 1→3→4, 2→6
+
+堆里只有 3 个节点（k=3）:
+[1, 1, 2]
+ ↓  ↓  ↓
+ 4  3  6   ← 在链表里等着，不在堆里
+ ↓  ↓
+ 5  4
+```
+
+## 完整代码
+
+```python
+class Solution:
+    def mergeKLists(self, lists):
+        heap = []
+        for i, l in enumerate(lists):
+            if l:                          # 链表可能为空
+                heapq.heappush(heap, (l.val, i, l))
+
+        dummy = cur = ListNode(0)
+        while heap:
+            val, i, node = heapq.heappop(heap)
+            cur.next = node
+            cur = cur.next
+            if node.next:
+                heapq.heappush(heap, (node.next.val, i, node.next))
+
+        return dummy.next
+```
+
+## 走一遍示例
+
+```
+lists: 1→4→5, 1→3→4, 2→6
+
+初始堆: [1, 1, 2]（三个链表的头）
+
+pop 1 → 结果: 1→       push 4    堆: [1, 2, 4]
+pop 1 → 结果: 1→1→     push 3    堆: [2, 3, 4]
+pop 2 → 结果: 1→1→2→   push 6    堆: [3, 4, 6]
+pop 3 → 结果: 1→1→2→3→ push 4    堆: [4, 4, 6]
+pop 4 → 结果: ...→4→   push 5    堆: [4, 5, 6]
+pop 4 → 结果: ...→4→4→ 无next    堆: [5, 6]
+pop 5 → 结果: ...→5→   无next    堆: [6]
+pop 6 → 结果: ...→6    堆空，结束
+
+最终: 1→1→2→3→4→4→5→6
+```
+
+## 为什么堆里要放 i
+
+当两个节点 val 相同时，Python 会比较第二个元素来打破平局。ListNode 不能比较，放个 `i` 作为 tiebreaker 就不会报错。
+
+```python
+heapq.heappush(heap, (l.val, i, l))
+                       ↑     ↑  ↑
+                      排序  平局 实际节点
+```
+
+## 易错点
+
+push 之前要检查链表是否为空：
+
+```python
+# 错误：lists 里可能有 None
+for i, l in enumerate(lists):
+    heapq.heappush(heap, (l.val, i, l))    # None.val 报错
+
+# 正确
+for i, l in enumerate(lists):
+    if l:
+        heapq.heappush(heap, (l.val, i, l))
+```
+
+## 三种方法对比
+
+| 方法 | 时间 | 空间 | 特点 |
+|------|------|------|------|
+| 逐一合并 | O(nk) | O(1) | 最慢，重复遍历多 |
+| 两两合并/分治 | O(n log k) | O(log k) | 每轮处理 n 个，共 log k 轮 |
+| 最小堆 | O(n log k) | O(k) | 最常用，代码最简洁 |
+
+## 为什么是 O(n log k) 不是 O(n log n)
+
+堆大小始终 ≤ k（每个链表只有一个代表在堆里），所以每次 push/pop 是 O(log k)。总共 n 个节点，每个进出堆一次，所以 O(n log k)。
 
 ## 226 Invert Binary Tree
 ## 104 Maximum Depth of Binary Tree
@@ -2377,6 +2740,116 @@ if not next_node.children:
 ## 215 Kth Largest Element in Array
 ## 703 Kth Largest Element in Stream
 ## 973 K Closest Points to Origin
+# Quick Select 简明笔记
+
+## 一句话总结
+
+Quick Select = 快排砍一半。每次 partition 后只递归需要的那一半。
+
+## 核心思路
+
+找前 k 小的元素，不要求有序：
+
+1. 选 pivot，把数组分成 "≤ pivot" 和 "> pivot" 两部分
+2. 看 pivot 落在位置 `p`：
+   - `p == k` → 结束，`arr[:k]` 就是答案
+   - `p < k` → 前面不够，去右半边继续找
+   - `p > k` → 前面太多，去左半边缩小
+3. 重复直到 `p == k`
+
+## Partition 详解
+
+```python
+def partition(l, r):
+    pivot = dist(points[r])   # 选最右边作为基准
+    p = l                      # "小于区域"的边界
+    for i in range(l, r):
+        if dist(points[i]) <= pivot:
+            points[i], points[p] = points[p], points[i]
+            p += 1
+    points[p], points[r] = points[r], points[p]
+    return p
+```
+
+`p` 就是一个隔板：左边全部 ≤ pivot，右边全部 > pivot。
+
+### 走一遍
+
+```
+距离: [20, 1, 18, 5]，pivot = 5
+       i→              p=0
+
+i=0: 20 <= 5? 否                    p=0
+i=1:  1 <= 5? 是 → swap(p=0, i=1)  p=1
+      [1, 20, 18, 5]
+i=2: 18 <= 5? 否                    p=1
+
+最后 swap(p=1, r=3):
+      [1, 5, 18, 20]
+          ↑ p=1  pivot 归位
+```
+
+## 完整代码（LeetCode 973）
+
+```python
+class Solution:
+    def kClosest(self, points: List[List[int]], k: int) -> List[List[int]]:
+        def dist(p):
+            return p[0] * p[0] + p[1] * p[1]
+
+        def partition(l, r):
+            pivot = dist(points[r])
+            p = l
+            for i in range(l, r):
+                if dist(points[i]) <= pivot:
+                    points[i], points[p] = points[p], points[i]
+                    p += 1
+            points[p], points[r] = points[r], points[p]
+            return p
+
+        l, r = 0, len(points) - 1
+        while l <= r:
+            pivot_idx = partition(l, r)
+            if pivot_idx == k:
+                break
+            elif pivot_idx < k:
+                l = pivot_idx + 1
+            else:
+                r = pivot_idx - 1
+
+        return points[:k]
+```
+
+## 三种方法对比
+
+| 方法 | 平均时间 | 最坏时间 | 空间 | 结果有序？ |
+|------|---------|---------|------|-----------|
+| 最小堆（全部 push） | O(n log n) | O(n log n) | O(n) | 可以 |
+| 最大堆（大小 k） | O(n log k) | O(n log k) | O(k) | 可以 |
+| Quick Select | **O(n)** | O(n²) | O(1) | 否 |
+
+## 什么时候用 Quick Select
+
+- 要前 k 个且**不要求有序** → Quick Select 最优
+- 要前 k 个且**要求有序** → 堆更方便
+- **动态数据流**维护 top k → 只能用堆
+- Quick Select 会**修改原数组**，不是所有场景都适合
+
+## 为什么是 O(n)
+
+每次处理范围大概减半：n + n/2 + n/4 + ... ≈ 2n = O(n)
+
+最坏 O(n²) 是 pivot 每次选到最大/最小值，可以随机选 pivot 避免：
+
+```python
+import random
+
+def partition(l, r):
+    rand = random.randint(l, r)
+    points[rand], points[r] = points[r], points[rand]
+    # 后面一样...
+```
+
 ## 621 Task Scheduler
 ## 295 Find Median from Data Stream
 
@@ -2791,6 +3264,99 @@ class Solution:
 | 撤销 | `pop` + `used = False` | `pop` + `remove` 三个 set |
 | 模板 | 完全一样 | 完全一样 |
 ## 90 Subsets II
+
+## 核心思路
+
+"选或不选"回溯，去重关键：**不选当前元素时，跳过所有相同的元素**。
+
+## 完整代码
+
+```python
+class Solution:
+    def subsetsWithDup(self, nums: List[int]) -> List[List[int]]:
+        res = []
+        nums.sort()  # 排序让相同元素相邻
+
+        def dfs(i, path):
+            if i == len(nums):
+                res.append(path.copy())
+                return
+
+            # 选 nums[i]
+            path.append(nums[i])
+            dfs(i + 1, path)
+            path.pop()
+
+            # 不选 nums[i]，跳过所有相同的
+            while i + 1 < len(nums) and nums[i + 1] == nums[i]:
+                i += 1
+            dfs(i + 1, path)
+
+        dfs(0, [])
+        return res
+```
+
+## 为什么需要 while 跳过
+
+以 `[1, 2, 2]` 为例，如果不跳过：
+
+```
+不选 i=1 的 2 → 选 i=2 的 2 → [2]
+选 i=1 的 2 → 不选 i=2 的 2 → [2]   ← 重复！
+```
+
+两条不同路径产生了同一个 `[2]`。
+
+加了 while 后，"不选"就意味着后面所有相同的元素全部跳过，不会偷偷从后面选一个回来。
+
+## while 循环走一遍
+
+`nums = [1, 2, 2, 2]`，当前 `i=1`，决定不选：
+
+```
+开始: i=1, nums[1]=2
+
+while: nums[2]==nums[1] → 2==2 ✓ → i=2
+while: nums[3]==nums[2] → 2==2 ✓ → i=3
+while: i+1=4 越界 → 退出
+
+dfs(4, path) → 直接到末尾，所有的 2 都不选
+```
+
+while 的效果：**停在最后一个重复元素上**，`i+1` 刚好跳到下一个不同的元素。
+
+## 决策树（`[1, 2, 2]`）
+
+```
+dfs(0, [])
+├── 选1 → dfs(1, [1])
+│   ├── 选2 → dfs(2, [1,2])
+│   │   ├── 选2 → [1,2,2] ✓
+│   │   └── 不选2 → [1,2] ✓
+│   └── 不选2 → 跳过重复 → [1] ✓
+└── 不选1 → dfs(1, [])
+    ├── 选2 → dfs(2, [2])
+    │   ├── 选2 → [2,2] ✓
+    │   └── 不选2 → [2] ✓
+    └── 不选2 → 跳过重复 → [] ✓
+```
+
+结果：`[1,2,2], [1,2], [1], [2,2], [2], []` — 6 个，无重复。
+
+## 直觉理解
+
+对于连续 k 个相同元素，合法的选法只有 k+1 种（选 0 个、1 个、...、k 个）：
+
+```
+三个 2 的情况：
+选 0 个: 不选 → while 跳过所有 → 结束
+选 1 个: 选 → 不选 → while 跳过剩余
+选 2 个: 选 → 选 → 不选
+选 3 个: 选 → 选 → 选
+```
+
+每种数量只出现一次，while 保证了这一点。
+
 ## 40 Combination Sum II
 ## 79 Word Search
 
@@ -3718,6 +4284,118 @@ class Solution:
 ## 332 Reconstruct Itinerary
 ## 1584 Min Cost to Connect All Points
 ## 743 Network Delay Time
+
+## 核心思路
+
+从起点出发，用最小堆每次取出距离最小的节点，确定它的最短距离，再扩展它的邻居。
+
+## 完整代码
+
+```python
+class Solution:
+    def networkDelayTime(self, times, n, k):
+        min_dist = {}
+        adj = defaultdict(list)
+        for u, v, w in times:
+            adj[u].append((v, w))
+
+        heap = []
+        heapq.heappush(heap, (0, k))
+
+        while heap:
+            time2cur, cur = heapq.heappop(heap)
+            if cur in min_dist:        # 已确定，跳过
+                continue
+            min_dist[cur] = time2cur   # pop 时记录
+
+            for v, w in adj[cur]:
+                if v not in min_dist:
+                    heapq.heappush(heap, (time2cur + w, v))
+
+        if len(min_dist) != n:
+            return -1
+        return max(min_dist.values())
+```
+
+## 堆和 min_dist 的配合
+
+堆负责排序，min_dist 负责去重，两个配合实现 Dijkstra。
+
+```
+堆:       负责"下一个该处理谁" → 每次给出距离最小的节点
+min_dist: 负责"谁已经确定了"  → 记录已确定最短距离的节点
+```
+
+每一步：
+
+```
+1. 堆 pop 出距离最小的节点
+2. min_dist 检查 → 处理过？跳过。没处理过？记录。
+3. 把未确定的邻居 push 进堆
+```
+
+## 走一遍示例
+
+```
+A --1--> B --1--> C
+A --3--> C
+```
+
+```
+          堆                    min_dist         动作
+初始:     [(0,A)]               {}
+
+pop A(0): []                    {A:0}           push B(1), C(3)
+          [(1,B),(3,C)]         {A:0}
+
+pop B(1): [(3,C)]              {A:0, B:1}       push C(2)
+          [(2,C),(3,C)]         {A:0, B:1}
+
+pop C(2): [(3,C)]              {A:0, B:1, C:2}  C确定了！
+
+pop C(3): C在min_dist → 跳过                    过时的，扔掉
+```
+
+堆里会有过时的副本（C 出现了两次），min_dist 帮忙挡掉。
+
+## 为什么第一次 pop 就是最短距离
+
+堆按距离从小到大 pop。如果 C 第一次被 pop 时距离是 2，堆里剩下的所有路径距离都 ≥ 2。所以不可能有更短的路径还没被发现。
+
+前提：**边权必须非负**。如果有负权边，一条"当前更长"的路径可能经过负权边变得更短，Dijkstra 就不成立了。
+
+## 容易写错的地方
+
+**错误1：push 时记录距离而不是 pop 时**
+
+```python
+# 错误：push 时不一定是最短
+for v, w in adj[cur]:
+    min_dist[v] = time2cur + w
+    heapq.heappush(heap, (time2cur + w, v))
+
+# 正确：pop 时才确定
+time2cur, cur = heapq.heappop(heap)
+if cur in min_dist:
+    continue
+min_dist[cur] = time2cur
+```
+
+**错误2：忘了 pop 时去重**
+
+```python
+# 少了这两行，同一个节点被处理多次，浪费时间
+if cur in min_dist:
+    continue
+```
+
+**一句话记忆：pop 时记录，pop 时去重。**
+
+## 复杂度
+
+- 时间：O(E log V)，E 是边数，V 是节点数
+- 空间：O(V + E)
+
 ## 778 Swim in Rising Water
 ## 787 Cheapest Flights Within K Stops
 
@@ -4464,6 +5142,125 @@ def uniquePaths(self, m, n):
 ## 494 Target Sum
 ## 97 Interleaving String
 ## 72 Edit Distance
+
+## 核心思路
+
+`dp[i][j]` = word1 前 i 个字符变成 word2 前 j 个字符的最少操作数。
+
+三种操作：插入、删除、替换。
+
+## 完整代码
+
+```python
+class Solution:
+    def minDistance(self, word1: str, word2: str) -> int:
+        m = len(word1)
+        n = len(word2)
+        dp = [[0] * (n + 1) for _ in range(m + 1)]
+
+        for i in range(1, m + 1):
+            dp[i][0] = i                  # 删 i 次
+        for j in range(1, n + 1):
+            dp[0][j] = j                  # 插 j 次
+
+        for i in range(1, m + 1):
+            for j in range(1, n + 1):
+                if word1[i-1] == word2[j-1]:
+                    dp[i][j] = dp[i-1][j-1]              # 相同，不操作
+                else:
+                    dp[i][j] = min(dp[i-1][j-1] + 1,     # 替换
+                                   dp[i][j-1] + 1,        # 插入
+                                   dp[i-1][j] + 1)        # 删除
+
+        return dp[m][n]
+```
+
+## 为什么比较 word1[i-1] 和 word2[j-1] 而不是 word1[i] 和 word2[j]
+
+dp 下标和字符串下标错开了一位：
+
+```
+dp 下标:    0    1    2    3
+            ↑
+            空   w    o    r
+字符串下标:      0    1    2
+```
+
+`dp[i]` 表示前 i 个字符，最后一个字符是 `word1[i-1]`：
+
+```
+dp[0] → ""          没有字符
+dp[1] → "w"         最后一个字符是 word1[0]
+dp[2] → "wo"        最后一个字符是 word1[1]
+```
+
+多出的一行一列是为了 base case（空字符串）。几乎所有字符串 DP 都用这个错位写法。
+
+## Base Case
+
+```python
+dp[i][0] = i   # word1 前 i 个字符 → 空串：删 i 次
+dp[0][j] = j   # 空串 → word2 前 j 个字符：插 j 次
+```
+
+这是真实答案，不是占位符，所以初始化用 0 不用 inf。每个格子都会被按顺序算到，不存在"读到未计算的格子"的情况。
+
+## 状态转移详解
+
+```
+             word2
+              j-1  j
+word1  i-1  [ 左上  上 ]     左上 dp[i-1][j-1] + 1 → 替换
+       i    [ 左   当前]     左   dp[i][j-1] + 1   → 插入
+                              上   dp[i-1][j] + 1   → 删除
+```
+
+字符相同时，左上不加 1（不需要操作）。
+
+## 走一遍示例
+
+word1 = "horse", word2 = "ros"
+
+```
+     ""  r  o  s
+""    0  1  2  3
+h     1  1  2  3
+o     2  2  1  2
+r     3  2  2  2
+s     4  3  3  2
+e     5  4  4  3  ← 答案
+```
+
+以 dp[1][1] 为例：h → r
+
+```
+h ≠ r，取 min：
+  dp[0][0] + 1 = 1  替换 h→r
+  dp[1][0] + 1 = 2  删除 h 再插入 r
+  dp[0][1] + 1 = 2  插入 r
+min = 1
+```
+
+## 易错点
+
+**忘了区分字符相同和不同：**
+
+```python
+# 错误：不相等时 dp[i-1][j-1] 没加 1
+dp[i][j] = min(dp[i-1][j-1], dp[i][j-1]+1, dp[i-1][j]+1)
+
+# 正确：不相等时替换也是一次操作
+if word1[i-1] == word2[j-1]:
+    dp[i][j] = dp[i-1][j-1]
+else:
+    dp[i][j] = min(dp[i-1][j-1]+1, dp[i][j-1]+1, dp[i-1][j]+1)
+```
+
+## 复杂度
+
+- 时间：O(m × n)
+- 空间：O(m × n)，可优化到 O(n) 用滚动数组
+
 ## 115 Distinct Subsequences
 
 ## 题意
@@ -4742,6 +5539,93 @@ def isHappy(self, n: int) -> bool:
 
 ## 136 Single Number
 ## 191 Number of 1 Bits
+
+## 核心思路
+
+数二进制里有多少个 1。
+
+## 解法一：逐位检查
+
+每次检查最后一位，然后右移去掉它。
+
+```python
+class Solution:
+    def hammingWeight(self, n: int) -> int:
+        count = 0
+        while n:
+            if n & 1:       # 最后一位是1吗
+                count += 1
+            n >>= 1         # 右移，去掉最后一位
+        return count
+```
+
+### 走一遍
+
+```
+n = 13 (1101)
+
+n & 1 = 1 ✓  count=1    n >>= 1 → 110 (6)
+n & 1 = 0    count=1    n >>= 1 → 11  (3)
+n & 1 = 1 ✓  count=2    n >>= 1 → 1   (1)
+n & 1 = 1 ✓  count=3    n >>= 1 → 0
+
+n=0，退出，返回 3
+```
+
+### 易错点
+
+```python
+if n &= 1:   # 错误：&= 是赋值，会把 n 改掉
+if n & 1:    # 正确：只检查，不修改 n
+
+n >= 1       # 错误：这是比较，不做任何事
+n >>= 1      # 正确：右移赋值
+```
+
+## 解法二：n & (n-1) 去掉最低位的 1（更优）
+
+每次直接去掉一个 1，循环次数 = 1 的个数。
+
+```python
+class Solution:
+    def hammingWeight(self, n: int) -> int:
+        count = 0
+        while n:
+            n = n & (n - 1)   # 去掉最低位的 1
+            count += 1
+        return count
+```
+
+### 走一遍
+
+```
+n = 13 (1101)
+
+n & (n-1) = 1101 & 1100 = 1100 (12)   count=1  去掉了最右边的1
+n & (n-1) = 1100 & 1011 = 1000 (8)    count=2  去掉了下一个1
+n & (n-1) = 1000 & 0111 = 0000 (0)    count=3  去掉了最后一个1
+
+n=0，退出，返回 3
+```
+
+### 为什么 n & (n-1) 能去掉最低位的 1
+
+n-1 会把最低位的 1 变成 0，它右边的 0 全变成 1，AND 后刚好抹掉那个 1：
+
+```
+n:    1 1 0 0   (12)
+n-1:  1 0 1 1   (11)  ← 最低位的1变0，右边全变1
+AND:  1 0 0 0   (8)   ← 最低位的1没了
+```
+
+## 两种解法对比
+
+| | 逐位检查 | n & (n-1) |
+|---|---|---|
+| 循环次数 | 总位数（32次） | 1 的个数 |
+| 时间 | O(32) | O(k)，k 是 1 的个数 |
+| 难度 | 直觉简单 | 需要理解 n & (n-1) |
+
 ## 338 Counting Bits
 ## 268 Missing Number
 ## 371 Sum of Two Integers

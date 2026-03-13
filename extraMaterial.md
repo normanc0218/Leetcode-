@@ -15,6 +15,82 @@
 ## 680 Valid Palindrome II
 ## 1768 Merge Strings Alternately
 ## 88 Merge Sorted Array
+## 核心思路
+
+从后往前填。nums1 后面有 n 个空位，从后往前不会覆盖还没处理的元素。
+
+## 三个指针
+
+```
+nums1 = [1, 2, 3, 0, 0, 0]
+              ↑i          ↑k
+nums2 = [2, 5, 6]
+              ↑j
+
+i = m-1       nums1 有效部分的最后一个
+j = n-1       nums2 的最后一个
+k = m+n-1     nums1 要填的位置
+```
+
+每次比较 nums1[i] 和 nums2[j]，大的放到 nums1[k]。
+
+## 完整代码
+
+```python
+class Solution:
+    def merge(self, nums1, m, nums2, n):
+        i = m - 1
+        j = n - 1
+        k = m + n - 1
+        while j >= 0:
+            if i >= 0 and nums1[i] > nums2[j]:
+                nums1[k] = nums1[i]
+                i -= 1
+            else:
+                nums1[k] = nums2[j]
+                j -= 1
+            k -= 1
+```
+
+## 走一遍示例
+
+```
+nums1 = [1, 2, 3, 0, 0, 0]   nums2 = [2, 5, 6]
+
+i=2 j=2 k=5: 3 vs 6 → 6大 → nums1[5]=6   j=1
+i=2 j=1 k=4: 3 vs 5 → 5大 → nums1[4]=5   j=0
+i=2 j=0 k=3: 3 vs 2 → 3大 → nums1[3]=3   i=1
+i=1 j=0 k=2: 2 vs 2 → 相等 → nums1[2]=2  j=-1
+
+j<0，退出
+
+结果: [1, 2, 2, 3, 5, 6]
+```
+
+## 为什么 while j >= 0 就够了
+
+nums2 全部放完就结束。nums1 剩下的元素本来就在 nums1 的正确位置，不用移动。
+
+反过来如果 nums1 先用完（i<0），循环继续把 nums2 剩下的填进去，由 else 分支处理。
+
+## 为什么从后往前
+
+从前往前会覆盖 nums1 还没处理的元素：
+
+```
+nums1 = [1, 2, 3, 0, 0, 0]   nums2 = [2, 5, 6]
+
+从前往前: nums1[0] = 1 ✓
+          nums1[1] = 2 ✓（但 nums1 原来的 2 被覆盖了吗？）
+```
+
+从后往前利用了 nums1 末尾的空位，填入不会影响还没比较的元素。
+
+## 复杂度
+
+- 时间：O(m + n)
+- 空间：O(1)，原地操作
+
 ## 26 Remove Duplicates From Sorted Array
 ## 18 4Sum
 ## 189 Rotate Array
@@ -149,6 +225,124 @@ class Solution:
 ## 145 Binary Tree Postorder Traversal
 ## 701 Insert into a Binary Search Tree
 ## 450 Delete Node in a BST
+
+## 核心思路
+
+```
+1. 找节点 → BST 二分查找（左小右大）
+2. 删节点 → 三种情况
+3. 两子时 → 找替代值，删掉原来的
+```
+
+## 三种情况
+
+**情况1：叶子节点** → 直接删（返回 None）
+
+```
+删除7:    5        5
+         / \  →   /
+        3   7    3
+```
+
+**情况2：只有一个子节点** → 用子节点替代
+
+```
+删除7:    5        5
+         / \  →   / \
+        3   7    3   9
+             \
+              9
+```
+
+**情况3：有两个子节点** → 找右子树最小值替换，再删掉那个最小值
+
+```
+删除5:    5        6
+         / \  →   / \
+        3   8    3   8
+           /        /
+          6        7
+           \
+            7
+```
+
+## 完整代码
+
+```python
+class Solution:
+    def deleteNode(self, root, key):
+        if not root:
+            return None
+
+        if key < root.val:
+            root.left = self.deleteNode(root.left, key)
+        elif key > root.val:
+            root.right = self.deleteNode(root.right, key)
+        else:
+            # 找到了要删的节点
+            if not root.left:        # 情况1&2: 无左子树（含叶子）
+                return root.right
+            if not root.right:       # 情况2: 无右子树
+                return root.left
+
+            # 情况3: 有两个子节点
+            cur = root.right
+            while cur.left:
+                cur = cur.left       # 找右子树最小值
+            root.val = cur.val       # 复制值
+            root.right = self.deleteNode(root.right, cur.val)  # 删掉副本
+
+        return root
+```
+
+## 关键细节
+
+### `return root.right` 为什么能同时处理情况1和2
+
+```
+叶子节点:   root.right = None → return None → 节点被删掉
+有右子节点: root.right = 某节点 → return 那个节点 → 替代了当前节点
+```
+
+父节点接住返回值，两种情况都正确。
+
+### 情况3 为什么要 deleteNode 第二次
+
+复制值后树里有两份相同的值，必须删掉原来那个：
+
+```
+      5                4               4
+     / \    复制值     / \    删副本    / \
+    3   8   →        3   8   →       3   8
+     \                \
+      4                4 ← 重复！
+```
+
+### 右子树最小 vs 左子树最大
+
+两种都可以，题目允许多种结果：
+
+```python
+# 右子树最小值（常见写法）
+cur = root.right
+while cur.left:
+    cur = cur.left
+root.val = cur.val
+root.right = self.deleteNode(root.right, cur.val)
+
+# 左子树最大值（同样正确）
+cur = root.left
+while cur.right:
+    cur = cur.right
+root.val = cur.val
+root.left = self.deleteNode(root.left, cur.val)
+```
+
+## 复杂度
+
+- 时间：O(h)，h 是树高，已是最优
+- 空间：O(h)，递归调用栈
+
 ## 427 Construct Quad Tree
 ## 337 House Robber III
 ## 1325 Delete Leaves With a Given Value
@@ -161,6 +355,142 @@ class Solution:
 ## 77 Combinations
 ## 47 Permutations II
 ## 473 Matchsticks to Square
+
+## 解法一：回溯 + 剪枝
+
+### 核心思路
+
+把每根火柴分配到 4 条边中的一条，DFS 尝试所有分配方式，看能否让 4 条边都等于 `sum/4`。
+
+### 完整代码
+
+```python
+class Solution:
+    def makesquare(self, matchsticks: List[int]) -> bool:
+        if sum(matchsticks) % 4 != 0:
+            return False
+        target = sum(matchsticks) // 4
+        matchsticks.sort(reverse=True)  # 剪枝1: 从大到小排序
+
+        sides = [0] * 4
+
+        def dfs(i):
+            if i == len(matchsticks):
+                return sides[0] == sides[1] == sides[2] == sides[3]
+
+            for side in range(4):
+                if sides[side] + matchsticks[i] > target:  # 剪枝2: 超过目标就跳过
+                    continue
+
+                sides[side] += matchsticks[i]
+                if dfs(i + 1):
+                    return True
+                sides[side] -= matchsticks[i]
+
+                if sides[side] == 0:  # 剪枝3: 空边去重
+                    break
+
+            return False
+
+        return dfs(0)
+```
+
+### 三个剪枝
+
+1. **降序排列** — 大的先放，更早触发超限，减少搜索分支
+2. **超过 target 就跳过** — 某条边已经超过 `sum/4`，没必要继续
+3. **空边去重** — 当前边为 0，放进去失败了，其他空边结果一样，直接 `break`
+
+### 剪枝3 详解
+
+```
+sides = [3, 0, 0, 0]，尝试放火柴到：
+  side 1 (值为0): 放进去 → 递归失败 → 回溯到 0
+  side 2 (值为0): 和 side 1 完全一样，不用试 → break
+  side 3 (值为0): 同理
+```
+
+`break` 跳出的是 `for side in range(4)` 循环，然后 `return False` 回溯到上一层。不会死循环。
+
+### 复杂度
+
+- 时间：最坏 O(4ⁿ)，剪枝后通常很快
+- 空间：O(n)
+
+---
+
+## 解法二：位掩码 DP
+
+---
+
+# 位掩码 DP 简明笔记
+
+## 什么是位掩码？
+
+用一个整数的二进制位来表示"哪些元素被选过"。
+
+以 4 根火柴为例，`mask = 0b1010 = 10`：
+
+```
+火柴编号:  3  2  1  0
+mask:      1  0  1  0
+→ 第1根和第3根已用，第0根和第2根没用
+```
+
+## 三个核心操作
+
+| 操作 | 代码 | 含义 |
+|------|------|------|
+| 检查第 i 位 | `mask & (1 << i)` | 第 i 根火柴用过没？ |
+| 设置第 i 位 | `mask \| (1 << i)` | 标记第 i 根为已使用 |
+| 取模归零 | `% target` | 填满一条边，开始下一条 |
+
+## 套到火柴拼正方形（LeetCode 473）
+
+**状态定义：** `dp[mask]` = 用了 mask 对应的火柴后，当前正在填的边累积了多少长度。`-1` 表示不可达。
+
+**转移：** 对每个可达的 mask，尝试加入每根未使用的火柴。
+
+```python
+dp[0] = 0  # 初始：没用任何火柴，累积长度为 0
+
+for mask in range(1 << n):
+    if dp[mask] == -1:
+        continue
+    for i in range(n):
+        if mask & (1 << i):          # 已用过，跳过
+            continue
+        if dp[mask] + matchsticks[i] <= target:
+            dp[mask | (1 << i)] = (dp[mask] + matchsticks[i]) % target
+```
+
+**答案：** `dp[(1 << n) - 1] == 0`（所有火柴都用完，且刚好归零）。
+
+## 走一遍示例
+
+`matchsticks = [3, 3, 3, 3]`，`target = 3`
+
+```
+dp[0000] = 0          → 用第0根 → dp[0001] = 3 % 3 = 0
+dp[0001] = 0          → 用第1根 → dp[0011] = 3 % 3 = 0
+dp[0011] = 0          → 用第2根 → dp[0111] = 3 % 3 = 0
+dp[0111] = 0          → 用第3根 → dp[1111] = 3 % 3 = 0 ✓
+```
+
+## 复杂度
+
+- 时间：O(2ⁿ × n)
+- 空间：O(2ⁿ)
+- n ≤ 15 → 2¹⁵ = 32768，完全可接受
+
+## 和回溯的对比
+
+| | 回溯 + 剪枝 | 位掩码 DP |
+|---|---|---|
+| 时间 | 最坏 O(4ⁿ)，剪枝后通常很快 | O(2ⁿ × n)，稳定可预测 |
+| 空间 | O(n) | O(2ⁿ) |
+| 特点 | 依赖剪枝效果 | 不依赖，枚举所有子集 |
+
 ## 698 Partition to K Equal Sum Subsets
 ## 52 N Queens II
 Almost the same as N Queens
