@@ -6,6 +6,183 @@
 ## 706 Design HashMap
 ## 912 Sort an Array
 ## 75 Sort Colors
+
+## 题目概述
+
+给定数组 `nums`，只包含 0（红）、1（白）、2（蓝），原地排序使得相同颜色相邻，顺序为 0 → 1 → 2。
+
+```
+输入：[2, 0, 2, 1, 1, 0]
+输出：[0, 0, 1, 1, 2, 2]
+```
+
+---
+
+## 解法一：计数排序（两遍扫描）
+
+数一下 0、1、2 各有几个，覆盖回去。
+
+```python
+def sortColors(self, nums):
+    count = [0, 0, 0]
+    for n in nums:
+        count[n] += 1
+    i = 0
+    for color in range(3):
+        for _ in range(count[color]):
+            nums[i] = color
+            i += 1
+```
+
+- 时间：O(n)，但遍历两遍
+- 空间：O(1)
+
+---
+
+## 解法二：三指针 — 荷兰国旗（一遍扫描）
+
+### 思路
+
+维护三个指针，把数组分成四个区域：
+
+```
+[0, lo)    → 全是 0
+[lo, mid)  → 全是 1
+[mid, hi]  → 未处理
+(hi, end]  → 全是 2
+```
+
+`mid` 从左往右扫，根据当前值做不同操作：
+
+- `nums[mid] == 0` → 和 `lo` 交换，`lo++`，`mid++`
+- `nums[mid] == 1` → 已在正确区域，`mid++`
+- `nums[mid] == 2` → 和 `hi` 交换，`hi--`，**mid 不动**
+
+### 为什么遇到 2 时 mid 不动？
+
+关键记忆：**换过来的值见过就走，没见过就留。**
+
+- 和 `lo` 交换：`lo` 左边 `mid` 都走过，换过来的只可能是 1，见过的，`mid++`
+- 和 `hi` 交换：`hi` 右边是未处理区域，换过来的可能是 0、1、2，没见过，`mid` 不动
+
+### 代码
+
+```python
+def sortColors(self, nums):
+    lo, mid, hi = 0, 0, len(nums) - 1
+    while mid <= hi:
+        if nums[mid] == 0:
+            nums[lo], nums[mid] = nums[mid], nums[lo]
+            lo += 1
+            mid += 1
+        elif nums[mid] == 1:
+            mid += 1
+        else:
+            nums[mid], nums[hi] = nums[hi], nums[mid]
+            hi -= 1
+            # mid 不动！
+```
+
+### 演练
+
+`[2, 0, 2, 1, 1, 0]`
+
+| 步骤 | lo | mid | hi | 操作 | 数组 |
+|------|-----|------|-----|------|------|
+| 1 | 0 | 0 | 5 | nums[0]=2，和 hi 换，hi-- | [0,0,2,1,1,2] |
+| 2 | 0 | 0 | 4 | nums[0]=0，和 lo 换，lo++,mid++ | [0,0,2,1,1,2] |
+| 3 | 1 | 1 | 4 | nums[1]=0，和 lo 换，lo++,mid++ | [0,0,2,1,1,2] |
+| 4 | 2 | 2 | 4 | nums[2]=2，和 hi 换，hi-- | [0,0,1,1,2,2] |
+| 5 | 2 | 2 | 3 | nums[2]=1，mid++ | [0,0,1,1,2,2] |
+| 6 | 2 | 3 | 3 | nums[3]=1，mid++ | [0,0,1,1,2,2] |
+| mid > hi，结束 ✓ |
+
+### 复杂度
+
+- 时间：O(n)，一遍扫描
+- 空间：O(1)
+
+---
+
+## 解法三：覆盖法 — 层层涂色（一遍扫描）
+
+### 思路
+
+三个指针 `zero`、`one`、`two`，`two` 是主循环负责扫描，`zero` 和 `one` 是跟随指针。
+
+每到一个位置，先假设是 2，再根据实际值逐层覆盖：
+
+```
+第一步：nums[two] = 2          → 先涂蓝
+第二步：如果 tmp < 2，nums[one] = 1  → 再涂白（覆盖一个 2）
+第三步：如果 tmp < 1，nums[zero] = 0 → 再涂红（覆盖一个 1）
+```
+
+### 跟随指针的速度
+
+`tmp` 的值决定谁跟上来：
+
+```
+tmp = 2 → 谁都不跟
+tmp = 1 → one 跟一步
+tmp = 0 → one 跟一步，zero 也跟一步
+```
+
+速度关系永远是 `zero ≤ one ≤ two`，自然把数组分成三段。
+
+### 代码
+
+```python
+def sortColors(self, nums):
+    zero = one = 0
+    for two in range(len(nums)):
+        tmp = nums[two]
+        nums[two] = 2
+        if tmp < 2:
+            nums[one] = 1
+            one += 1
+        if tmp < 1:
+            nums[zero] = 0
+            zero += 1
+```
+
+### 演练
+
+`[2, 0, 2, 1, 1, 0]`
+
+| two | tmp | 写 2 | 写 1 | 写 0 | zero | one | 数组 |
+|-----|-----|------|------|------|------|-----|------|
+| 0 | 2 | [0]=2 | — | — | 0 | 0 | [2,0,2,1,1,0] |
+| 1 | 0 | [1]=2 | [0]=1 | [0]=0 | 1 | 1 | [0,2,2,1,1,0] |
+| 2 | 2 | [2]=2 | — | — | 1 | 1 | [0,2,2,1,1,0] |
+| 3 | 1 | [3]=2 | [1]=1 | — | 1 | 2 | [0,1,2,2,1,0] |
+| 4 | 1 | [4]=2 | [2]=1 | — | 1 | 3 | [0,1,1,2,2,0] |
+| 5 | 0 | [5]=2 | [3]=1 | [1]=0 | 2 | 4 | [0,0,1,1,2,2] |
+
+结果：`[0, 0, 1, 1, 2, 2]` ✓
+
+### 复杂度
+
+- 时间：O(n)，一遍扫描
+- 空间：O(1)
+
+---
+
+## 三种解法对比
+
+| | 计数排序 | 三指针（荷兰国旗） | 覆盖法（层层涂色） |
+|--|---------|----------------|--------------|
+| 扫描次数 | 两遍 | 一遍 | 一遍 |
+| 操作方式 | 数数再覆盖 | 交换 | 直接覆盖 |
+| 易错点 | 无 | mid 遇到 2 不能 ++ | 无 |
+| 面试推荐 | 保底方案 | 经典考点 | 加分写法 |
+
+## 相关题目
+
+- **LeetCode 283** — Move Zeroes（双指针，把 0 移到末尾）
+- **LeetCode 215** — Kth Largest Element（快速选择，用到类似分区思想）
+- **LeetCode 324** — Wiggle Sort II（三向切分的应用）
+
 ## 304 Range Sum Query 2D Immutable
 ## 122 Best Time to Buy And Sell Stock II
 ## 229 Majority Element II
@@ -216,11 +393,452 @@ class Solution:
 ## 1011 Capacity to Ship Packages Within D Days
 ## 81 Search In Rotated Sorted Array II
 ## 410 Split Array Largest Sum
+
+## 题目概述
+
+给定整数数组 `nums` 和整数 `k`，将数组分成 `k` 个非空连续子数组，使得所有子数组的和的最大值**最小化**。
+
+```
+输入：nums = [7,2,5,10,8], k = 2
+输出：18
+
+分法：[7,2,5] 和 [10,8] → max(14, 18) = 18（最优）
+```
+
+---
+
+## 解法一：二分答案 + 贪心验证（推荐）
+
+### 思维路径
+
+```
+正面想怎么切 → 组合太多，太复杂
+    ↓
+换角度：猜一个上限 mid，验证能不能做到
+    ↓
+发现验证很简单（贪心扫一遍）
+    ↓
+发现 mid 有单调性（越大越容易满足）
+    ↓
+二分搜索找最小的可行 mid
+```
+
+### 关键洞察：二分答案 ≠ 二分查找
+
+二分需要的不是"数组排好序"，而是**搜索空间有单调性**。
+
+| | 二分查找 | 二分答案 |
+|--|---------|---------|
+| 搜索空间 | 排好序的数组 | 答案的取值范围 |
+| 需要排序吗 | 需要 | 不需要，数字天然有序 |
+| 单调性来自 | 数组有序 | 可行性的单调变化 |
+
+本题答案范围 `[max(nums), sum(nums)]`，天然有序：
+
+```
+mid:    10   11   12   ...  17   18   19   ...  32
+可行：   ✗    ✗    ✗   ...   ✗    ✓    ✓   ...   ✓
+        ←——— 红色（不可行）——→ ←—— 蓝色（可行）——→
+                              ↑
+                          答案在这里（红蓝边界）
+```
+
+### 验证函数（贪心）
+
+规定每段和不超过 `mid`，从左到右贪心地塞，塞不下就切一刀：
+
+```python
+def can_split(nums, mid, k):
+    count = 1       # 至少一段
+    curr_sum = 0
+    for num in nums:
+        if curr_sum + num > mid:
+            count += 1      # 切一刀
+            curr_sum = num   # 新段从当前元素开始
+        else:
+            curr_sum += num
+    return count <= k
+```
+
+### 完整代码
+
+```python
+def splitArray(self, nums, k):
+    lo, hi = max(nums), sum(nums)
+
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if self.can_split(nums, mid, k):
+            hi = mid        # mid 可以，试试更小的
+        else:
+            lo = mid + 1    # mid 不行，需要更大
+    return lo
+
+def can_split(self, nums, mid, k):
+    count = 1
+    curr_sum = 0
+    for num in nums:
+        if curr_sum + num > mid:
+            count += 1
+            curr_sum = num
+        else:
+            curr_sum += num
+    return count <= k
+```
+
+### 复杂度
+
+- 时间：O(n × log(sum - max)) — 二分次数 × 每次验证
+- 空间：O(1)
+
+---
+
+## 解法二：动态规划（保底方案）
+
+### 思路
+
+`dp[i][j]` = 前 `i` 个元素分成 `j` 段，最大子数组和的最小值。
+
+对于每个可能的分割点 `m`：
+- 前 `m` 个元素分 `j-1` 段 → `dp[m][j-1]`
+- 第 `m+1` 到第 `i` 个元素作为最后一段 → `sum(nums[m:i])`
+
+取两者的 max（因为要的是最大子数组和），再对所有 `m` 取 min（因为要最小化）：
+
+```
+dp[i][j] = min( max(dp[m][j-1], sum(nums[m:i])) )  对所有有效的 m
+```
+
+### 用前缀和加速区间求和
+
+```
+sum(nums[m:i]) = prefix[i] - prefix[m]
+```
+
+### 完整代码
+
+```python
+def splitArray(self, nums, k):
+    n = len(nums)
+
+    # 前缀和
+    prefix = [0] * (n + 1)
+    for i in range(n):
+        prefix[i + 1] = prefix[i] + nums[i]
+
+    # dp[i][j] = 前 i 个元素分 j 段的最小最大和
+    dp = [[float('inf')] * (k + 1) for _ in range(n + 1)]
+    dp[0][0] = 0
+
+    for i in range(1, n + 1):          # 前 i 个元素
+        for j in range(1, min(i, k) + 1):  # 分 j 段
+            for m in range(j - 1, i):       # 分割点
+                last_sum = prefix[i] - prefix[m]
+                dp[i][j] = min(dp[i][j], max(dp[m][j - 1], last_sum))
+
+    return dp[n][k]
+```
+
+### 演练
+
+`nums = [7, 2, 5, 10, 8]`，k = 2，prefix = `[0, 7, 9, 14, 24, 32]`
+
+填 `dp[i][1]`（分 1 段 = 前缀和）：
+
+| i | dp[i][1] |
+|---|----------|
+| 1 | 7 |
+| 2 | 9 |
+| 3 | 14 |
+| 4 | 24 |
+| 5 | 32 |
+
+填 `dp[i][2]`（分 2 段，枚举分割点 m）：
+
+| i | 枚举 m | 计算 | dp[i][2] |
+|---|--------|------|----------|
+| 2 | m=1: max(dp[1][1], sum[1:2]) = max(7, 2) = 9 | | 9 |
+| 3 | m=1: max(7, 7)=7, m=2: max(9, 5)=9 | min(7, 9) | 7 |
+| 4 | m=1: max(7, 17)=17, m=2: max(9, 15)=15, m=3: max(14, 10)=14 | min(17, 15, 14) | 14 |
+| 5 | m=1: max(7, 25)=25, m=2: max(9, 23)=23, m=3: max(14, 18)=18, m=4: max(24, 8)=24 | min(25, 23, 18, 24) | **18** |
+
+答案：`dp[5][2] = 18` ✓
+
+### 复杂度
+
+- 时间：O(n² × k)
+- 空间：O(n × k)
+
+---
+
+## 两种解法对比
+
+| | 二分 + 贪心 | DP |
+|--|------------|-----|
+| 时间 | O(n × log(sum)) | O(n² × k) |
+| 空间 | O(1) | O(n × k) |
+| 思路 | 猜答案，验证可行性 | 枚举所有分割方式 |
+| 难点 | 想到"二分答案" | 状态转移方程 |
+| 面试策略 | 最优解，优先写 | 保底方案 |
+
+## 同类题目（二分答案 + 贪心验证）
+
+- **LeetCode 875** — Koko Eating Bananas（吃香蕉的速度）
+- **LeetCode 1011** — Capacity To Ship Packages（船的载重量）
+- **LeetCode 1482** — Minimum Number of Days to Make m Bouquets（做花束的天数）
+
+这类题的共同特征：直接求最优很难，但**给定一个值验证可行性很简单**，且可行性有单调性。
+
 ## 1095 Find in Mountain Array
 ## 92 Reverse Linked List II
+
+## 题目概述
+
+给定链表的头节点和两个整数 `left`、`right`，反转从位置 `left` 到位置 `right` 的节点，返回反转后的链表。
+
+```
+输入：1 → 2 → 3 → 4 → 5, left=2, right=4
+输出：1 → 4 → 3 → 2 → 5
+```
+
+注意：`left` 和 `right` 是**位置**，不是值。
+
+---
+
+## 核心思路：两件事
+
+**第一件事：反转中间一段**
+
+就是标准的反转链表操作，用 `prev`、`cur`、`nxt` 三个变量。
+
+**第二件事：两根线接回去**
+
+反转会把链表断成三截，需要两个锚点把它们接起来。
+
+---
+
+## 四个关键指针
+
+```
+prev_left  → 左边断口的锚点，反转后负责接新头
+tail       → 右边断口的锚点，反转后负责接后半段
+prev       → 反转中用的指针，反转完是新头
+cur        → 反转中用的指针，反转完是后半段起点
+```
+
+dummy 不参与操作，只是给 `prev_left` 一个落脚点（处理 left=1 的边界），最后用 `dummy.next` 返回答案。
+
+---
+
+## 图解全过程
+
+### 第一步：找到 prev_left 和 tail
+
+```
+dummy → 1 → 2 → 3 → 4 → 5
+        ↑   ↑
+  prev_left  tail
+```
+
+`prev_left`：left 前面那个节点（节点 1）
+`tail`：反转段的起点（节点 2，反转后变尾巴）
+
+### 第二步：反转中间段
+
+```
+prev=None, cur=节点2
+
+第一轮：None ← 2    3 → 4 → 5
+第二轮：None ← 2 ← 3    4 → 5
+第三轮：None ← 2 ← 3 ← 4    cur=5
+```
+
+反转完：`prev` = 节点 4（新头），`cur` = 节点 5（后半段）
+
+### 第三步：两根线接回去
+
+链表断成三截：
+
+```
+第一截：dummy → 1
+第二截：4 → 3 → 2
+第三截：5 → ...
+```
+
+接线：
+
+```
+prev_left.next = prev    节点1 → 节点4（第一截接第二截）
+tail.next = cur           节点2 → 节点5（第二截接第三截）
+```
+
+结果：
+
+```
+dummy → 1 → 4 → 3 → 2 → 5 ✓
+```
+
+---
+
+## 代码
+
+```python
+def reverseBetween(self, head, left, right):
+    dummy = ListNode(next=head)
+
+    # 走到 left 前一个
+    prev_left = dummy
+    for _ in range(left - 1):
+        prev_left = prev_left.next
+
+    # 记住反转段起点（反转后变尾巴）
+    tail = prev_left.next
+
+    # 反转 right - left + 1 个节点
+    prev = None
+    cur = tail
+    for _ in range(right - left + 1):
+        nxt = cur.next
+        cur.next = prev
+        prev = cur
+        cur = nxt
+
+    # 两根线接回去
+    prev_left.next = prev   # 前半段 → 新头
+    tail.next = cur          # 旧头（现在是尾） → 后半段
+
+    return dummy.next
+```
+
+---
+
+## 易错点
+
+| 易错点 | 说明 |
+|--------|------|
+| left/right 是位置不是值 | 用 `for _ in range()` 按位置走，不要按值找 |
+| 反转次数 | `right - left + 1` 次，不是 `right - left` |
+| 忘记接回去 | 反转完必须加两根线，否则链表断裂 |
+| left=1 的边界 | 需要 dummy 节点，否则 prev_left 无处落脚 |
+
+## 复杂度
+
+- **时间**：O(n) — 最多遍历一次链表
+- **空间**：O(1) — 只用了几个指针
+
+## 相关题目
+
+- **LeetCode 206** — Reverse Linked List（反转整条链表，基础版）
+- **LeetCode 25** — Reverse Nodes in k-Group（每 k 个一组反转，进阶版）
+- **LeetCode 24** — Swap Nodes in Pairs（两两交换，k=2 的特例）
+
 ## 622 Design Circular Queue
 ## 460 LFU Cache
 ## 94 Binary Tree Inorder Traversal
+
+## 题目概述
+
+给定二叉树的根节点，返回中序遍历的结果。
+
+中序遍历顺序：**左 → 根 → 右**
+
+```
+    1
+     \
+      2
+     /
+    3
+
+输出：[1, 3, 2]
+```
+
+## 三种遍历对比
+
+| 遍历方式 | 顺序 | 记忆方式 |
+|---------|------|---------|
+| 前序 Preorder | 根 → 左 → 右 | 根在**前** |
+| 中序 Inorder | 左 → 根 → 右 | 根在**中** |
+| 后序 Postorder | 左 → 右 → 根 | 根在**后** |
+
+## 解法一：递归（DFS）
+
+### 闭包写法（推荐）
+
+`res` 定义在外层，内层函数直接访问，不需要传参。
+
+```python
+def inorderTraversal(self, root):
+    res = []
+    def dfs(node):
+        if node is None:
+            return
+        dfs(node.left)       # 左
+        res.append(node.val) # 根
+        dfs(node.right)      # 右
+    dfs(root)
+    return res
+```
+
+### 传参写法（也可以）
+
+```python
+def inorderTraversal(self, root):
+    def dfs(node, res):
+        if node is None:
+            return
+        dfs(node.left, res)
+        res.append(node.val)
+        dfs(node.right, res)
+    res = []
+    dfs(root, res)
+    return res
+```
+
+两种效果一样，闭包写法更简洁。
+
+## 解法二：迭代（用栈模拟递归）
+
+```python
+def inorderTraversal(self, root):
+    res = []
+    stack = []
+    curr = root
+    while curr or stack:
+        while curr:            # 一路向左走到底
+            stack.append(curr)
+            curr = curr.left
+        curr = stack.pop()     # 弹出 = 访问
+        res.append(curr.val)
+        curr = curr.right      # 转向右子树
+    return res
+```
+
+### 迭代思路
+
+递归隐式用了调用栈，迭代就是手动维护这个栈：
+1. 一路往左走，沿途节点压栈
+2. 走到底了，弹出栈顶（这就是"访问根"）
+3. 转向右子树，重复
+
+## 复杂度
+
+- **时间**：O(n) — 每个节点访问一次
+- **空间**：O(h) — h 为树高，最坏 O(n)（链状树），平衡树 O(log n)
+
+## 关键点速记
+
+- 中序遍历 = 左根右，对 BST 来说结果是**升序排列**
+- 递归写法：base case 是 `node is None`
+- 闭包可以直接访问外层变量，不需要传 `res`
+- 迭代写法的核心：**一路向左压栈，弹出访问，转向右子树**
+
+## 相关题目
+
+- **LeetCode 144** — 前序遍历（根左右）
+- **LeetCode 145** — 后序遍历（左右根）
+- **LeetCode 98** — 验证 BST（中序遍历应为升序）
+- **LeetCode 230** — BST 第 K 小元素（中序遍历第 K 个）
+
 ## 144 Binary Tree Preorder Traversal
 ## 145 Binary Tree Postorder Traversal
 ## 701 Insert into a Binary Search Tree
@@ -501,6 +1119,95 @@ Diag2-> r+c
 ## 2707 Extra Characters in a String
 ## 463 Island Perimeter
 ## 953 Verifying An Alien Dictionary
+
+## 题目概述
+
+给定一组单词和一个外星字母顺序，判断这些单词是否按该顺序排好了。
+
+```
+输入：words = ["hello","leetcode"], order = "hlabcdefgijkmnopqrstuvwxyz"
+输出：true（因为 h 排在 l 前面）
+```
+
+## 与 Alien Dictionary（LeetCode 269）的区别
+
+| | 953（本题） | 269（Alien Dictionary） |
+|--|------------|----------------------|
+| 给你什么 | 完整的字母顺序 + 一组单词 | 只给一组单词 |
+| 问什么 | 单词是否按顺序排好了 | 推导字母顺序是什么 |
+| 本质 | 验证 | 推导 |
+| 解法 | 逐对比较 | 拓扑排序 |
+
+---
+
+## 核心思路
+
+没有算法技巧，就是纯模拟字典序比较。
+
+**字典序的定义**：比较两个单词，找到第一个不同的字符，谁的字符排前面谁就排前面。前缀相同的话，短的排前面。
+
+### 两步走
+
+第一步：建映射，把外星字母顺序转成数字
+
+```python
+order_map = {c: i for i, c in enumerate(order)}
+```
+
+第二步：逐对比较相邻单词
+
+---
+
+## 比较两个单词的三种结果
+
+```
+相同字符     → 继续看下一个
+不同且顺序错 → return False
+不同且顺序对 → break（答案已出，不用再看）
+前缀相同 w1 更长 → return False
+```
+
+---
+
+## 代码
+
+```python
+def isAlienSorted(self, words, order):
+    order_map = {c: i for i, c in enumerate(order)}
+
+    for i in range(len(words) - 1):
+        w1, w2 = words[i], words[i + 1]
+        for j in range(len(w1)):
+            if j >= len(w2):                        # w1 更长，前缀相同
+                return False
+            if w1[j] != w2[j]:                      # 第一个不同字符
+                if order_map[w1[j]] > order_map[w2[j]]:
+                    return False                    # 顺序错
+                break                                # 顺序对，看下一对
+    return True
+```
+
+---
+
+## 易错点
+
+| 易错点 | 说明 |
+|--------|------|
+| 越界检查顺序 | `j >= len(w2)` 必须在访问 `w2[j]` **之前**，否则 IndexError |
+| 缺少 break | 第一个不同字符已经决定顺序，不 break 会误判后面的字符 |
+| break 位置 | 必须在 `w1[j] != w2[j]` 的分支**内部**，不能放外面（否则第一个字符就跳出） |
+| 前缀相同 w1 更长 | "apple" vs "app" 应返回 False |
+
+## 复杂度
+
+- **时间**：O(m × n) — m 个单词，每个最长 n 个字符
+- **空间**：O(1) — order_map 固定 26 个字母
+
+## 相关题目
+
+- **LeetCode 269** — Alien Dictionary（推导字母顺序，拓扑排序）
+- **LeetCode 242** — Valid Anagram（字符频率比较）
+
 ## 997 Find the Town Judge
 ## 752 Open The Lock
 ## 1462 Course Schedule IV
@@ -818,6 +1525,71 @@ class Solution:
 ## 63 Unique Paths II
 ## 64 Minimum Path Sum
 ## 1049 Last Stone Weight II
+# LeetCode 1046 - Last Stone Weight
+
+## 题目概述
+
+给定一组石头的重量数组 `stones`，每次取出**最重的两块**石头互相碰撞：
+
+- 两块一样重 → 都粉碎
+- 不一样重 → 剩余重量 `|x - y|` 放回
+
+重复直到剩 ≤ 1 块石头，返回最后剩余的重量（没有则返回 0）。
+
+## 核心思路
+
+**最大堆（Max Heap）**：每次都需要取最大的两个元素，堆是最优选择。
+
+Python 的 `heapq` 只提供**最小堆**，所以用**取反**模拟最大堆。
+
+## 代码
+
+```python
+import heapq
+from typing import List
+
+class Solution:
+    def lastStoneWeight(self, stones: List[int]) -> int:
+        # 取反入堆，模拟最大堆
+        heap = [-s for s in stones]
+        heapq.heapify(heap)  # O(n) 建堆
+
+        while len(heap) > 1:
+            h1 = -heapq.heappop(heap)  # 最大
+            h2 = -heapq.heappop(heap)  # 次大
+            if h1 > h2:
+                heapq.heappush(heap, -(h1 - h2))
+
+        return -heap[0] if heap else 0
+```
+
+## 关键点速记
+
+| 要点 | 说明 |
+|------|------|
+| 数据结构 | 最大堆（取反模拟） |
+| 建堆方式 | `heapify` O(n) 优于逐个 `heappush` O(n log n) |
+| 入堆/出堆 | 存 `-val`，取出后再取反还原 |
+| 循环条件 | `len(heap) > 1`，剩一个或零个时停止 |
+| 碰撞逻辑 | 相等则都消失（不push）；不等则push差值 |
+
+## 复杂度
+
+- **时间**：O(n log n) — 最多 n-1 轮，每轮 pop/push O(log n)
+- **空间**：O(n) — 堆的大小
+
+## 易错点
+
+1. **忘记取反**：push 差值时也要取反 `-(h1 - h2)`
+2. **空堆处理**：循环结束后堆可能为空，需判断
+3. **逐个 push vs heapify**：功能相同但建堆复杂度不同
+
+## 相关题目
+
+- **LeetCode 703** — 数据流中的第 K 大元素（最小堆）
+- **LeetCode 215** — 数组中的第 K 大元素（堆/快速选择）
+- **LeetCode 1046 → 1049** — Last Stone Weight II（DP，进阶版）
+
 ## 877 Stone Game
 ## 1140 Stone Game II
 ## 860 Lemonade Change
@@ -1200,6 +1972,175 @@ return dp[5] = True ✓
 ## 649 Dota2 Senate
 ## 135 Candy
 ## 2402 Meeting Rooms III
+### 题意
+
+有 n 间会议室（编号 0 到 n-1），安排规则：
+1. 优先选**编号最小的空闲房间**
+2. 没有空闲就等**最早结束的房间**（结束时间相同选编号小的）
+
+返回使用次数最多的房间编号。
+
+---
+
+### 解法一：暴力 O(m × n)
+
+用数组 `rooms[i]` 记录每间房的结束时间，每次线性扫描。
+
+**两件事**：
+- 从房间 0 开始找第一个空闲房间（`rooms[i] <= s`）
+- 同时记录结束时间最早的房间（`min_room`）
+
+```python
+def mostBooked(self, n, meetings):
+    meetings.sort()
+    rooms = [0] * n
+    count = [0] * n
+
+    for s, e in meetings:
+        min_room = 0
+        found = False
+        for i in range(n):
+            if rooms[i] <= s:
+                found = True
+                count[i] += 1
+                rooms[i] = e
+                break
+            if rooms[min_room] > rooms[i]:
+                min_room = i
+        if found:
+            continue
+        count[min_room] += 1
+        rooms[min_room] += e - s
+
+    return count.index(max(count))
+```
+
+---
+
+### 解法二：双堆 O(m log n)
+
+**从暴力到优化的思路**：暴力中每次都线性扫描找最小值，而"反复取最小值"正是堆擅长的事。
+
+**空闲房间和使用中房间需要不同的排序规则**，所以拆成两个堆：
+- `free` 堆：按房间号排序 → 取编号最小的空闲房间
+- `busy` 堆：按 (结束时间, 房间号) 排序 → 取最早结束的
+
+**暴力中隐含的释放操作需要显式做**：分配前把 `busy` 中已结束的房间转移到 `free`。
+
+```python
+def mostBooked(self, n, meetings):
+    meetings.sort()
+    free = list(range(n))
+    busy = []
+    count = [0] * n
+
+    for s, e in meetings:
+        # 释放已结束的房间
+        while busy and busy[0][0] <= s:
+            _, room = heapq.heappop(busy)
+            heapq.heappush(free, room)
+
+        if free:
+            room = heapq.heappop(free)
+            heapq.heappush(busy, (e, room))
+        else:
+            earliest_end, room = heapq.heappop(busy)
+            heapq.heappush(busy, (earliest_end + e - s, room))
+
+        count[room] += 1
+
+    return count.index(max(count))
+```
+
+**暴力 vs 双堆对应关系**：
+
+| 操作 | 暴力 | 双堆 |
+|------|------|------|
+| 找空闲房间 | 线性扫描 O(n) | `free` 堆弹出 O(log n) |
+| 找最早结束 | 线性扫描 O(n) | `busy` 堆弹出 O(log n) |
+| 释放已结束房间 | 隐含在扫描中 | 显式循环转移 |
+
+---
+
+### 解法三：单堆 + 拉平技巧 O(m log n)
+
+**核心想法**：把所有房间放在一个堆里，按 `(结束时间, 房间号)` 排序。
+
+**问题**：多个空闲房间结束时间不同，堆顶不一定是编号最小的。
+
+**解决**：每次分配前，把所有结束时间 < start 的房间的结束时间**统一改成 start**（拉平），这样空闲房间第一个排序键相同，堆自动按房间号排。
+
+```python
+def mostBooked(self, n, meetings):
+    meetings.sort()
+    available = [(0, i) for i in range(n)]
+    count = [0] * n
+
+    for start, end in meetings:
+        # 拉平：所有空闲房间的结束时间统一改成 start
+        # start 是单调增加的因为我们sort,所以我们可以巧妙的把available 铺平再做剩下的计算
+        # 所以我们可以只用available的第二个index去做排序找数字最小的空闲房间
+        while available and available[0][0] < start:
+            end_time, room = heapq.heappop(available)
+            heapq.heappush(available, (start, room))
+
+        end_time, room = heapq.heappop(available)
+        heapq.heappush(available, (end_time + (end - start), room))
+        count[room] += 1
+
+    return count.index(max(count))
+```
+
+**拉平技巧的两个作用**：
+
+1. **统一排序键**：空闲房间结束时间相同 → 堆按房间号排序 → 选出编号最小的
+2. **修正公式**：`end_time + (end - start)` 对空闲房间也成立（`start + (end - start) = end`）
+
+**拉平不影响后续的原因**：会议已排序，`start` 单调递增，后续的 while 循环总会把未使用的房间重新拉平到新的 `start`。
+
+---
+
+### 拉平技巧演练
+
+3 间房，会议 `[[1,3],[0,5],[2,7],[4,6],[8,10]]`，排序后 `[[0,5],[1,3],[2,7],[4,6],[8,10]]`
+
+初始堆：`[(0,0), (0,1), (0,2)]`
+
+| 会议 | while 拉平后 | 弹出 | 推入 | count |
+|------|-------------|------|------|-------|
+| [0,5] | 不动 | (0,0) | (5,0) | [1,0,0] |
+| [1,3] | (0,1)→(1,1), (0,2)→(1,2) | (1,1) | (3,1) | [1,1,0] |
+| [2,7] | (1,2)→(2,2) | (2,2) | (7,2) | [1,1,1] |
+| [4,6] | (3,1)→(4,1) | (4,1) | (6,1) | [1,2,1] |
+| [8,10] | (5,0)→(8,0), (6,1)→(8,1), (7,2)→(8,2) | (8,0) | (10,0) | [2,2,1] |
+
+最后一步：三间都空闲，拉平到 `(8,0)(8,1)(8,2)`，堆自动按房间号排序，选出房间 0。
+
+结果：`count = [2, 2, 1]`，返回 **0**。
+
+---
+
+## 三道题的递进关系
+
+```
+252（有没有冲突）
+ ↓ 如果有冲突，需要多少间房？
+253（最少几间房）
+ ↓ 有固定房间数，哪间用得最多？
+2402（哪间房最忙）
+```
+
+## 通用优化思路
+
+```
+暴力（线性扫描找最值）
+ ↓ 发现瓶颈：反复取最小值
+ ↓ 选对数据结构：堆
+优化（堆 O(log n) 替代扫描 O(n)）
+```
+
+这个"暴力 → 找瓶颈 → 换数据结构"的套路适用于很多题目。
+
 ## 168 Excel Sheet Column Title
 ## 1071 Greatest Common Divisor of Strings
 ## 2807 Insert Greatest Common Divisors in Linked List

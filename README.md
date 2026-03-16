@@ -463,6 +463,7 @@ def backtrack(路径, 选择列表, ...):
 - [210 Course Schedule II](mainMaterial.md#210-course-schedule-ii)
 - [684 Redundant Connection](mainMaterial.md#684-redundant-connection)
 - [269 Alien Dictionary](mainMaterial.md#269-alien-dictionary)
+- [329 Longest Increasing Path in a Matrix](mainMaterial.md#329-longest-increasing-path-in-a-matrix)
 
 ## 12. Advanced Graphs
 - [332 Reconstruct Itinerary](mainMaterial.md#332-reconstruct-itinerary)

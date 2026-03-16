@@ -744,6 +744,93 @@ def isPalindrome(self, s: str) -> bool:
 
 **提示**: 双指针是最基础的模式之一，这题是入门必刷题！💪
 ## 167 Two Sum II
+## 题目概述
+
+给定一个**已排序**的数组 `numbers` 和目标值 `target`，找到两个数使它们的和等于 `target`，返回它们的下标（1-indexed）。
+
+```
+输入：numbers = [2,7,11,15], target = 9
+输出：[1,2]（因为 numbers[0] + numbers[1] = 2 + 7 = 9）
+```
+
+---
+
+## 为什么双指针是最优解
+
+题目的关键条件是**已排序**，三种解法对比：
+
+| 解法 | 时间 | 空间 | 用到排序了吗 |
+|------|------|------|------------|
+| HashMap | O(n) | O(n) | ✗ 没用到 |
+| Binary Search | O(n log n) | O(1) | ✓ 但时间更慢 |
+| 双指针 | O(n) | O(1) | ✓ 且空间最优 |
+
+- HashMap 是 Two Sum I（LeetCode 1）的解法，没利用排序条件，空间 O(n)
+- Binary Search 利用了排序但时间更差
+- 双指针**既利用了排序又做到了 O(1) 空间**，是本题的最优解
+
+题目 Follow-up 也明确说：要求空间 O(1)，所以双指针是期望解法。
+
+---
+
+## 双指针思路
+
+左指针指最小，右指针指最大，根据当前和调整：
+
+```
+和太小 → 需要更大的数 → 左指针右移
+和太大 → 需要更小的数 → 右指针左移
+刚好等于 → 找到答案
+```
+
+---
+
+## 代码
+
+```python
+def twoSum(self, numbers, target):
+    l, r = 0, len(numbers) - 1
+    while l < r:
+        cur = numbers[l] + numbers[r]
+        if cur == target:
+            return [l + 1, r + 1]  # 1-indexed
+        elif cur < target:
+            l += 1
+        else:
+            r -= 1
+```
+
+---
+
+## 为什么双指针不会漏解
+
+假设答案是 `numbers[i]` 和 `numbers[j]`（i < j）。
+
+- 左指针从 0 往右走，一定会经过 i
+- 右指针从末尾往左走，一定会经过 j
+- 在到达 i 和 j 之前，不可能跳过它们，因为：
+  - 左指针只在和太小时右移（说明当前左值不够大，不是答案）
+  - 右指针只在和太大时左移（说明当前右值不够小，不是答案）
+
+所以每次移动都是安全地排除一个不可能的值。
+
+## 复杂度
+
+- **时间**：O(n) — 每个元素最多被访问一次
+- **空间**：O(1) — 只用两个指针
+
+## 关键点速记
+
+- 已排序 + 两数之和 → 双指针
+- 1-indexed 返回值，别忘了 +1
+- 题目保证唯一解，while 循环内一定能 return
+
+## 相关题目
+
+- **LeetCode 1** — Two Sum（无序数组，用 HashMap）
+- **LeetCode 15** — 3Sum（排序 + 双指针，外层多一层循环）
+- **LeetCode 11** — Container With Most Water（双指针，移动较短的一边）
+
 ## 15 3Sum
 ## 11 Container With Most Water
 
@@ -4441,6 +4528,165 @@ class Solution:
 | LC 207 | Course Schedule | 拓扑排序判环 |
 | LC 210 | Course Schedule II | 拓扑排序输出结果 |
 | LC 269 | Alien Dictionary | 本题 |
+## 329 Longest Increasing Path in a Matrix
+## 题目概述
+
+给定一个 m × n 的整数矩阵，找到最长的**严格递增路径**长度。只能上下左右移动，不能斜着走。
+
+```
+输入：
+9 9 4
+6 6 8
+2 1 1
+
+输出：4（路径：1 → 2 → 6 → 9）
+```
+
+---
+
+## 为什么纯 DFS 不够
+
+从不同起点出发会重复经过同一个格子。比如从 (0,0) 和 (1,0) 出发都可能经过 (0,1)，以 (0,1) 为起点的路径会被重复计算。
+
+**解决**：加记忆化，每个格子只算一次。
+
+## 为什么不需要 visited 数组
+
+严格递增条件本身就阻止了环——不可能从 5 走到 3 再走回 5，所以不会重复访问。
+
+---
+
+## 解法一：DFS + @cache（推荐）
+
+```python
+from functools import cache
+
+def longestIncreasingPath(self, matrix):
+    rows, cols = len(matrix), len(matrix[0])
+
+    @cache
+    def dfs(r, c):
+        best = 1  # 至少包含自己
+        for dr, dc in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+            nr, nc = r + dr, c + dc
+            if 0 <= nr < rows and 0 <= nc < cols and matrix[nr][nc] > matrix[r][c]:
+                best = max(best, 1 + dfs(nr, nc))
+        return best
+
+    return max(dfs(r, c) for r in range(rows) for c in range(cols))
+```
+
+### @cache 缓存了什么
+
+输入 `(r, c)` → 输出（从该位置出发的最长路径长度）：
+
+```
+dfs(0, 0) → 3    缓存 {(0,0): 3}
+dfs(0, 1) → 2    缓存 {(0,0): 3, (0,1): 2}
+...
+下次再调用 dfs(0, 0) 时直接返回 3，不再递归
+```
+
+等价于手动写 memo 字典：
+
+```python
+memo = {}
+def dfs(r, c):
+    if (r, c) in memo:
+        return memo[(r, c)]
+    best = ...
+    memo[(r, c)] = best
+    return best
+```
+
+### @cache 使用须知
+
+- `from functools import cache`（Python 3.9+）
+- 更低版本用 `@lru_cache(maxsize=None)`，效果一样
+- LeetCode 上默认已导入，面试写白板时要提一下
+
+---
+
+## 解法二：DFS + 手动 memo
+
+```python
+def longestIncreasingPath(self, matrix):
+    rows, cols = len(matrix), len(matrix[0])
+    memo = {}
+
+    def dfs(r, c):
+        if (r, c) in memo:
+            return memo[(r, c)]
+
+        best = 1
+        for dr, dc in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+            nr, nc = r + dr, c + dc
+            if 0 <= nr < rows and 0 <= nc < cols and matrix[nr][nc] > matrix[r][c]:
+                best = max(best, 1 + dfs(nr, nc))
+
+        memo[(r, c)] = best
+        return best
+
+    ans = 0
+    for r in range(rows):
+        for c in range(cols):
+            ans = max(ans, dfs(r, c))
+    return ans
+```
+
+---
+
+## 解法三：DP + 排序
+
+按值从小到大排序后填表，填每个格子时比它小的邻居都已算好。
+
+```python
+def longestIncreasingPath(self, matrix):
+    rows, cols = len(matrix), len(matrix[0])
+    dp = [[1] * cols for _ in range(rows)]
+
+    cells = []
+    for r in range(rows):
+        for c in range(cols):
+            cells.append((matrix[r][c], r, c))
+    cells.sort()
+
+    ans = 1
+    for val, r, c in cells:
+        for dr, dc in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+            nr, nc = r + dr, c + dc
+            if 0 <= nr < rows and 0 <= nc < cols and matrix[nr][nc] < val:
+                dp[r][c] = max(dp[r][c], 1 + dp[nr][nc])
+        ans = max(ans, dp[r][c])
+
+    return ans
+```
+
+---
+
+## 三种解法对比
+
+| | DFS + @cache | DFS + 手动 memo | DP + 排序 |
+|--|-------------|----------------|----------|
+| 时间 | O(m × n) | O(m × n) | O(mn × log(mn)) |
+| 空间 | O(m × n) | O(m × n) | O(m × n) |
+| 思路 | 自顶向下 | 自顶向下 | 自底向上 |
+| 代码量 | 最简洁 | 稍多 | 稍多 |
+| 面试推荐 | ✓ 首选 | ✓ 万能写法 | 提一下即可 |
+
+## 关键点速记
+
+- DFS + 记忆化，不是纯 DFS
+- 严格递增天然防环，不需要 visited
+- `@cache` = 自动记忆化，key 是参数，value 是返回值
+- DP 需要先排序确定填表顺序，多了 log 开销，反而不如 DFS + memo
+
+## 相关题目
+
+- **LeetCode 200** — Number of Islands（矩阵 DFS 基础）
+- **LeetCode 695** — Max Area of Island（矩阵 DFS + 计数）
+- **LeetCode 1092** — Shortest Common Supersequence（记忆化搜索）
+
 ## 332 Reconstruct Itinerary
 ## 1584 Min Cost to Connect All Points
 ## 743 Network Delay Time
