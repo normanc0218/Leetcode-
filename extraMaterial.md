@@ -622,6 +622,84 @@ V = numCourses（顶点数），E = len(prerequisites)（边数）
 ## 2392 Build a Matrix With Conditions
 ## 2709 Greatest Common Divisor Traversal
 ## 1137 N-th Tribonacci Number
+## 题目描述
+
+泰波那契序列 $T_n$ 定义如下：
+
+$$T_0 = 0,\quad T_1 = 1,\quad T_2 = 1$$
+
+$$T_{n+3} = T_n + T_{n+1} + T_{n+2} \quad (n \geq 0)$$
+
+给定整数 `n`，返回第 `n` 个泰波那契数 $T_n$。
+
+---
+
+## 解题思路
+
+使用**动态规划（DP）**，自底向上递推计算每一项，避免递归重复计算。
+
+### 状态定义
+
+`dp[i]` 表示第 `i` 个泰波那契数。
+
+### 状态转移方程
+
+$$dp[i] = dp[i-1] + dp[i-2] + dp[i-3], \quad i \geq 3$$
+
+### 边界条件
+
+| n | 结果 |
+|---|------|
+| 0 | 0    |
+| 1 | 1    |
+| 2 | 1    |
+
+---
+
+## 代码实现
+
+```python
+class Solution:
+    def tribonacci(self, n: int) -> int:
+        if n == 0:
+            return 0
+        if 1 <= n <= 2:
+            return 1
+
+        dp = [0] * (n + 1)
+        dp[0] = 0
+        dp[1] = 1
+        dp[2] = 1
+
+        for i in range(3, n + 1):
+            dp[i] = dp[i-1] + dp[i-2] + dp[i-3]
+
+        return dp[n]
+```
+
+---
+
+## 复杂度分析
+
+| 类型 | 复杂度 |
+|------|--------|
+| 时间复杂度 | $O(n)$ |
+| 空间复杂度 | $O(n)$ |
+
+> **优化提示**：由于每次只需要前三项，可将 `dp` 数组替换为三个变量，将空间复杂度优化至 $O(1)$。
+
+---
+
+## 示例推导
+
+以 `n = 7` 为例：
+
+| i | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7  |
+|---|---|---|---|---|---|---|---|----|
+| dp[i] | 0 | 1 | 1 | 2 | 4 | 7 | 13 | 24 |
+
+**输出：** `24`
+
 ## 377 Combination Sum IV
 ## 279 Perfect Squares
 ## 343 Integer Break
@@ -871,6 +949,254 @@ class Solution:
 | 时间复杂度 | O(n) | O(n) |
 | 空间复杂度 | O(n) | O(1) |
 ## 1871 Jump Game VII
+
+## 题目描述
+
+给定一个二进制字符串 `s` 和两个整数 `minJump`、`maxJump`。
+
+- 起点在下标 `0`（一定是 `'0'`）
+- 从 `i` 跳到 `j` 需满足：`i + minJump <= j <= i + maxJump` 且 `s[j] == '0'`
+
+问：能否到达下标 `n-1`？
+
+---
+
+## 核心思路
+
+### 为什么不能贪心？
+
+贪心只考虑局部最优，但这题有障碍物且跳跃范围固定，贪心可能走进死路且无法回头。需要 **DP** 记录所有可达位置。
+
+### 为什么用 DP + 前缀和？
+
+- **DP**：记录每个位置是否可达
+- **前缀和**：快速查询某个区间内有没有可达位置，避免内层循环超时
+
+---
+
+## 定义
+
+### `f` 数组（即 dp）
+
+```
+f[i] = 1  表示下标 i 可达
+f[i] = 0  表示下标 i 不可达
+```
+
+初始：`f[0] = 1`（起点一定可达）
+
+### `pre` 数组（前缀和）
+
+```
+pre[i] = f[0] + f[1] + ... + f[i]   （包含 i 自身）
+```
+
+查询区间 `[l, r]` 内有没有可达位置：
+
+$$pre[r] - pre[l-1] > 0$$
+
+---
+
+## 状态转移
+
+对每个位置 `i`，能跳到它的位置 `j` 满足：
+
+$$i - maxJump \leq j \leq i - minJump$$
+
+所以转移方程为：
+
+$$f[i] = \begin{cases} 1 & \text{若 } s[i] = \text{'0'} \text{ 且 } pre[r] - pre[l-1] > 0 \\ 0 & \text{其他} \end{cases}$$
+
+其中 $l = i - maxJump$，$r = i - minJump$
+
+---
+
+## 初始化细节
+
+由于从 `i = minJump` 开始遍历，需要提前预处理 `[0, minJump)` 这段的前缀和：
+
+```python
+for i in range(minJump):
+    pre[i] = 1
+```
+
+因为这段范围内只有 `f[0] = 1`，其余为 `0`，前缀和全为 `1`。
+
+---
+
+## 完整代码
+
+```python
+class Solution:
+    def canReach(self, s: str, minJump: int, maxJump: int) -> bool:
+        n = len(s)
+        f, pre = [0] * n, [0] * n
+        f[0] = 1
+
+        # 预处理 [0, minJump) 的前缀和
+        for i in range(minJump):
+            pre[i] = 1
+
+        for i in range(minJump, n):
+            left  = i - maxJump
+            right = i - minJump
+            if s[i] == '0':
+                total = pre[right] - (0 if left <= 0 else pre[left - 1])
+                f[i] = int(total != 0)
+            pre[i] = pre[i - 1] + f[i]
+
+        return bool(f[n - 1])
+```
+
+---
+
+## 举例推导
+
+```
+s = "011010"，minJump=2，maxJump=3
+```
+
+**初始化：**
+```
+f   = [1, 0, 0, 0, 0, 0]
+pre = [1, 1, 1, 0, 0, 0]   ← 预处理前3位
+```
+
+**i=3，s[3]='0'，查 [0, 1]：**
+```
+left=0, right=1
+pre[1] - 0 = 1 > 0  →  f[3]=1
+pre[3] = pre[2] + f[3] = 1 + 1 = 2
+```
+
+**i=4，s[4]='1'，跳过：**
+```
+pre[4] = pre[3] + f[4] = 2 + 0 = 2
+```
+
+**i=5，s[5]='0'，查 [2, 3]：**
+```
+left=2, right=3
+pre[3] - pre[1] = 2 - 1 = 1 > 0  →  f[5]=1
+```
+
+**结果：**
+```
+f = [1, 0, 0, 1, 0, 1]
+return f[5] = 1 → True ✓
+```
+
+---
+
+## 我的写法
+
+### 定义
+
+```
+dp[i] = True   表示下标 i 可达
+dp[i] = False  表示下标 i 不可达
+```
+
+`pre` 长度为 `n+1`，**不包含自身**：
+
+```
+pre[i] = dp[0] + dp[1] + ... + dp[i-1]
+```
+
+查询区间 `[l, r]` 内有没有可达位置：
+
+$$pre[r+1] - pre[l] > 0$$
+
+### 初始化
+
+```python
+dp[0] = True
+pre[0] = 0   # 固定开头
+pre[1] = 1   # 因为 dp[0] = True
+# 其余全是 0
+```
+
+用数组表示：
+```
+dp  = [T, F, F, F, F, F]
+pre = [0, 1, 0, 0, 0, 0, 0]   ← 长度 n+1=7
+```
+
+### 完整代码
+
+```python
+class Solution:
+    def canReach(self, s: str, minJump: int, maxJump: int) -> bool:
+        n = len(s)
+        dp = [False] * n
+        dp[0] = True
+        pre = [0] * (n + 1)
+        pre[1] = 1
+
+        for i in range(1, n):
+            if s[i] == '0':
+                l = max(0, i - maxJump)
+                r = i - minJump
+                if r >= 0 and pre[r + 1] - pre[l] > 0:
+                    dp[i] = True
+            pre[i + 1] = pre[i] + dp[i]
+
+        return dp[n - 1]
+```
+
+### 举例推导
+
+```
+s = "011010"，minJump=2，maxJump=3
+```
+
+**初始化：**
+```
+dp  = [T, F, F, F, F, F]
+pre = [0, 1, 0, 0, 0, 0, 0]
+```
+
+**i=3，s[3]='0'，查 [0, 1]：**
+```
+l=0, r=1
+pre[2] - pre[0] = 1 - 0 = 1 > 0  →  dp[3]=True
+pre[4] = pre[3] + dp[3] = 1 + 1 = 2
+```
+
+**i=5，s[5]='0'，查 [2, 3]：**
+```
+l=2, r=3
+pre[4] - pre[2] = 2 - 1 = 1 > 0  →  dp[5]=True
+```
+
+**结果：**
+```
+dp = [T, F, F, T, F, T]
+return dp[5] = True ✓
+```
+
+---
+
+## 两种写法对比
+
+| | 我的写法 | 官方写法 |
+|--|---------|---------|
+| `pre` 长度 | `n+1` | `n` |
+| `pre[i]` 含义 | `f[0]..f[i-1]` 的和 | `f[0]..f[i]` 的和 |
+| 区间查询 | `pre[r+1] - pre[l]` | `pre[r] - pre[l-1]` |
+| 边界特判 | 不需要 | `left <= 0` 时用 `0` |
+
+两种写法**本质相同**，只是下标偏移不同。
+
+---
+
+## 复杂度分析
+
+| 类型 | 复杂度 |
+|------|--------|
+| 时间复杂度 | $O(n)$ |
+| 空间复杂度 | $O(n)$ |
+
 ## 649 Dota2 Senate
 ## 135 Candy
 ## 2402 Meeting Rooms III

@@ -1,4 +1,75 @@
 ## 1 Two Sum
+## 题目描述
+
+给定一个整数数组 `nums` 和一个目标值 `target`，在数组中找出**和为目标值的两个整数**，返回它们的下标。
+
+- 每种输入只对应一个答案
+- 不能重复使用同一个元素
+
+---
+
+## 解题思路
+
+使用**哈希表（HashMap）**，一次遍历完成查找，避免暴力双层循环。
+
+### 核心思想
+
+遍历数组时，对于当前元素 `n`，计算其补数：
+
+$$diff = target - n$$
+
+- 若 `diff` **已在哈希表中**，直接返回 `[mp[diff], i]`
+- 否则，将当前元素及其下标存入哈希表：`mp[n] = i`
+
+### 图示
+
+```
+nums = [2, 7, 11, 15],  target = 9
+
+i=0: n=2, diff=7  → 7 不在 mp 中 → mp={2:0}
+i=1: n=7, diff=2  → 2 在 mp 中   → 返回 [0, 1] ✓
+```
+
+---
+
+## 代码实现
+
+```python
+class Solution:
+    def twoSum(self, nums: List[int], target: int) -> List[int]:
+        mp = {}
+        for i, n in enumerate(nums):
+            diff = target - n
+            if diff in mp:
+                return [mp[diff], i]
+            mp[n] = i
+```
+
+---
+
+## 复杂度分析
+
+| 类型 | 复杂度 | 说明 |
+|------|--------|------|
+| 时间复杂度 | $O(n)$ | 只需遍历数组一次 |
+| 空间复杂度 | $O(n)$ | 哈希表最多存储 n 个元素 |
+
+> **对比暴力法**：暴力双层循环时间复杂度为 $O(n^2)$，哈希表将查找从 $O(n)$ 降至 $O(1)$，整体提升显著。
+
+---
+
+## 示例推导
+
+以 `nums = [3, 2, 4]`，`target = 6` 为例：
+
+| i | n | diff | mp 中存在？ | mp 状态 |
+|---|---|------|------------|---------|
+| 0 | 3 | 3    | ✗          | {3: 0}  |
+| 1 | 2 | 4    | ✗          | {3: 0, 2: 1} |
+| 2 | 4 | 2    | ✓          | —       |
+
+**输出：** `[1, 2]`
+
 ## 287 Find the Duplicate Number
 
 把 `index → nums[index]` 当链表，重复值 = 环入口，用 Floyd 判圈（同 142 题）。
@@ -5421,6 +5492,128 @@ class Solution:
 
 ## 56 Merge Intervals
 ## 57 Insert Interval
+## 题目描述
+
+给定一个**无重叠**且**按起点升序排列**的区间列表 `intervals`，以及一个新区间 `newInterval`。
+
+将新区间插入列表中，确保列表仍然有序且无重叠（如有必要，合并重叠区间）。
+
+---
+
+## 核心思路
+
+遍历每个区间，对于每个 `intervals[i]`，只有三种情况：
+
+```
+情况1：新区间在左边，完全不重叠
+        newInterval:  [1, 2]
+        intervals[i]:          [3, 5]
+        → 直接插入 newInterval，后面全部追加，结束
+
+情况2：新区间在右边，完全不重叠
+        newInterval:          [4, 6]
+        intervals[i]:  [1, 2]
+        → 保留 intervals[i]，继续遍历
+
+情况3：重叠，需要合并
+        newInterval:  [2, 5]
+        intervals[i]:    [3, 7]
+        → 合并为 [min(2,3), max(5,7)] = [2, 7]
+```
+
+---
+
+## 判断条件
+
+| 条件 | 含义 | 操作 |
+|------|------|------|
+| `newInterval[1] < intervals[i][0]` | 新区间完全在左 | 插入并返回 |
+| `newInterval[0] > intervals[i][1]` | 新区间完全在右 | 保留当前区间 |
+| 其他 | 重叠 | 合并 |
+
+---
+
+## 代码实现
+
+```python
+class Solution:
+    def insert(self, intervals: List[List[int]], newInterval: List[int]) -> List[List[int]]:
+        res = []
+        for i in range(len(intervals)):
+            # 情况1：新区间完全在当前区间左边，直接插入，后面全部追加
+            if newInterval[1] < intervals[i][0]:
+                res.append(newInterval)
+                return res + intervals[i:]
+            # 情况2：新区间完全在当前区间右边，保留当前区间
+            elif newInterval[0] > intervals[i][1]:
+                res.append(intervals[i])
+            # 情况3：重叠，合并
+            else:
+                newInterval = [min(newInterval[0], intervals[i][0]),
+                               max(newInterval[1], intervals[i][1])]
+        # 遍历结束，新区间还没插入（在最右边或一直在合并）
+        res.append(newInterval)
+        return res
+```
+
+---
+
+## 举例推导
+
+```
+intervals = [[1,3],[6,9]]，newInterval = [2,5]
+```
+
+**i=0，intervals[0]=[1,3]：**
+```
+newInterval[1]=5 >= intervals[0][0]=1  → 不是情况1
+newInterval[0]=2 <= intervals[0][1]=3  → 不是情况2
+→ 情况3，合并：newInterval = [min(2,1), max(5,3)] = [1, 5]
+```
+
+**i=1，intervals[1]=[6,9]：**
+```
+newInterval[1]=5 < intervals[1][0]=6  → 情况1！
+→ res.append([1,5])，return [[1,5],[6,9]]
+```
+
+**输出：** `[[1,5],[6,9]] ✓`
+
+---
+
+## 再看一个例子
+
+```
+intervals = [[1,2],[3,5],[6,7],[8,10],[12,16]]，newInterval = [4,8]
+```
+
+| i | intervals[i] | 情况 | 操作 |
+|---|-------------|------|------|
+| 0 | [1,2] | 新区间在右 | res=[[1,2]] |
+| 1 | [3,5] | 重叠 | newInterval=[3,8] |
+| 2 | [6,7] | 重叠 | newInterval=[3,8] |
+| 3 | [8,10] | 重叠 | newInterval=[3,10] |
+| 4 | [12,16] | 新区间在左 | 插入并返回 |
+
+**输出：** `[[1,2],[3,10],[12,16]] ✓`
+
+---
+
+## 复杂度分析
+
+| 类型 | 复杂度 | 说明 |
+|------|--------|------|
+| 时间复杂度 | $O(n)$ | 只遍历一次 |
+| 空间复杂度 | $O(n)$ | 结果数组 |
+
+---
+
+## 关键细节
+
+- 循环结束后必须 `res.append(newInterval)`，因为有两种情况新区间还未插入：
+  1. 新区间一直在右边，遍历完还没插入
+  2. 新区间一直在合并，合并结果还未加入 `res`
+
 ## 435 Non-overlapping Intervals
 ## 920 Meeting Rooms
 ## 2402 Meeting Rooms III
