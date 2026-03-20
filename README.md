@@ -78,7 +78,7 @@ def two_pointers(s):
 - [424 Longest Repeating Character Replacement](mainMaterial.md#424-longest-repeating-character-replacement)
 - [567 Permutation in String](mainMaterial.md#567-permutation-in-string)
 - [76 Minimum Window Substring](mainMaterial.md#76-minimum-window-substring)
-
+- [239 Sliding Window Maximum](mainMaterial.md#239-sliding-window-maximum)
 ## 04. Stack
 - [20 Valid Parentheses](mainMaterial.md#20-valid-parentheses)
 - [155 Min Stack](mainMaterial.md#155-min-stack)
@@ -545,6 +545,7 @@ def backtrack(路径, 选择列表, ...):
 - [229 Majority Element II](extraMaterial.md#229-majority-element-ii)
 - [560 Subarray Sum Equals K](extraMaterial.md#560-subarray-sum-equals-k)
 - [41 First Missing Positive](extraMaterial.md#41-first-missing-positive)
+- [43. Multiply String](extraMaterial.md#43-multiply-string)
 
 ## 2. Two Pointers
 - [344 Reverse String](extraMaterial.md#344-reverse-string)

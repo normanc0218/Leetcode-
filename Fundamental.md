@@ -14,7 +14,8 @@ Personal ML knowledge base.
 - [Lagrangian SVM derivation](#拉格朗日乘子法--svm-推导笔记)
 - [Random Forest & XGBoost](#决策树--random-forest--xgboost-复习笔记)
 - [Convolutional Neural Network](#cnn-卷积神经网络-完整复习笔记)
-
+- [CNN](#卷积神经网络-cnn-完整复习笔记)
+- [ANN](#人工神经网络-ann-完整复习笔记)
 
 
 
@@ -2802,3 +2803,516 @@ TensorFlow： (batch, H, W, C)    通道在后
 
 **Q7: CNN 和 Transformer 的区别？**
 CNN 看局部（卷积核范围内），Transformer 看全局（自注意力）。ViT 正在用 Transformer 替代 CNN。
+# 卷积神经网络 (CNN) 完整复习笔记
+
+## 1. CNN 的核心思想
+
+普通全连接网络（ANN）把图片拉平成一维向量，丢失了空间结构信息。CNN 通过卷积操作保留图片的空间关系——相邻像素之间的关系被保留下来。
+
+CNN 的核心操作：用一个小的卷积核（filter）在图片上滑动，提取局部特征（边缘、纹理、形状等），逐层从低级特征组合出高级语义。
+
+---
+
+## 2. 经典 CNN 架构演进
+
+### AlexNet (2012)
+
+- 第一个在 ImageNet 上大幅胜出的 CNN
+- 使用大卷积核（11×11, 5×5）
+- 8 层深度（5 卷积 + 3 全连接）
+- 核心贡献：证明 CNN 能赢传统方法
+
+### VGG (2014)
+
+- 核心思想：用多个 3×3 小卷积核代替大卷积核
+- 深度：16/19 层
+- 3 层 FC（继承自 AlexNet）
+
+**为什么 3×3 更好？**
+
+一个 7×7 卷积核 vs 三层 3×3 卷积核：
+
+- 感受野一样大
+- 更多非线性：三层 3×3 有三次 ReLU，一层 7×7 只有一次
+- 参数更少：$7 \times 7 = 49$ 参数 vs $3 \times 3 \times 3 = 27$ 参数
+
+**VGG 的 3 层 FC**
+
+- FC1（4096）：将 7×7×512 = 25088 维特征压缩到 4096 维
+- FC2（4096）：进一步抽象特征
+- FC3（1000）：输出 1000 个 ImageNet 类别
+
+为什么要压缩维度？高维不代表信息多，很多维度是冗余和噪声。压缩是"去噪 + 提炼"，强迫模型保留真正重要的特征。整个网络是一个信息漏斗：原始像素（巨大）→ 卷积提取局部特征（中等）→ FC 压缩为核心语义（较小）→ 分类输出（很小）。
+
+**VGG 的缺点：** 3 层 FC 占了约 90% 的参数量（~1.24 亿 / ~1.38 亿），太重了。
+
+### ResNet (2015)
+
+- 核心改进：残差连接（Skip Connection）
+- 深度：50/101/152 层
+- 用 Global Average Pooling 替代 FC 层，参数大幅减少
+
+**解决的问题：梯度消失**
+
+网络太深时，梯度在反向传播中经过太多层，连乘后趋近于 0，前面的层学不动。
+
+**残差连接的原理：**
+
+普通网络：$H(x) = F(x)$（直接学输出）
+
+ResNet：$H(x) = F(x) + x$（学输入和输出的差异）
+
+梯度变为：$\frac{\partial}{\partial x}[F(x) + x] = \frac{\partial F}{\partial x} + 1$
+
+那个 $+1$ 保证梯度至少为 1，永远不会消失。
+
+**直觉理解：**
+
+- 普通网络：每道题从头推导
+- ResNet：带公式表进考场，在已知基础上解题
+
+如果某一层不需要做变换，普通网络要学恒等映射 $F(x) = x$（难），ResNet 只需要学 $F(x) = 0$（容易，权重趋近零即可）。
+
+**ResNet 的"滑稽"之处：** 152 层没有 skip connection 根本训练不了，但正因为有了 skip connection，152 层才成为可能。两者是绑定的。后来研究发现很多层学到的 $F(x)$ 接近于 0，说明网络自己判断"这层不需要"，让它变成恒等映射。
+
+---
+
+## 3. 对抗梯度消失的技术总结
+
+梯度消失是深度学习发展史的核心问题。以下技术本质上都在解决同一个问题：
+
+| 技术 | 如何对抗梯度消失 |
+|------|----------------|
+| ReLU 替代 Sigmoid | Sigmoid 导数最大 0.25，连乘消失；ReLU 正区间导数恒为 1 |
+| Cross-Entropy 替代 MSE | 消掉 Sigmoid 导数 $y(1-y)$，梯度不受饱和区影响 |
+| ResNet Skip Connection | 梯度多一条直通路径，加了 $+1$，保底不消失 |
+| BatchNorm | 稳定每层输入分布，防止激活值跑到饱和区 |
+
+---
+
+## 4. Gradient Ascent 与视觉应用
+
+### Gradient Descent vs Gradient Ascent
+
+| | Gradient Descent | Gradient Ascent |
+|--|-----------------|-----------------|
+| 公式 | $w = w - \alpha \cdot \nabla L$ | $w = w + \alpha \cdot \nabla L$ |
+| 方向 | 沿梯度反方向 | 沿梯度正方向 |
+| 目标 | 最小化损失 | 最大化某个函数 |
+
+两者完全等价：最大化 $f(x)$ = 最小化 $-f(x)$。
+
+### Deep Dream（Gradient Ascent）
+
+- 冻结网络权重，对输入图像做 gradient ascent
+- 最大化某一层的激活值
+- 网络"看到"的模式被不断放大 → 迷幻效果
+- 例如：某层学到了"狗眼睛"特征 → 图片里到处冒出眼睛
+
+### Style Transfer（Gradient Descent）
+
+- 同样冻结网络权重，修改输入图像
+- 最小化内容损失 + 风格损失
+- 内容损失：让结果保留原图内容
+- 风格损失：让结果具有目标风格的纹理
+
+**两者共同点：** 都不训练网络，而是反过来修改图像本身。区别只是优化方向相反。
+
+---
+
+## 5. 目标检测：从 R-CNN 到 YOLO
+
+### 核心问题
+
+图像分类只需要回答"是什么"，目标检测需要同时回答"是什么"和"在哪里"。
+
+### R-CNN 系列（Two-Stage，两阶段）
+
+**R-CNN：**
+
+1. Selective Search 提出 ~2000 个候选框
+2. 每个候选框单独过一遍 CNN，提取特征
+3. SVM 分类 + 回归器微调框位置
+
+问题：每张图 2000 个框，每个单独跑 CNN，非常慢。
+
+**Fast R-CNN：**
+
+- 整张图只过一次 CNN，从 feature map 上裁剪对应区域
+- 2000 个框共享一次卷积计算
+- 但 Selective Search 仍在 CPU 上跑，是瓶颈
+
+**Faster R-CNN：**
+
+- 用 RPN（Region Proposal Network）替代 Selective Search
+- RPN 是搭在 backbone CNN feature map 上的轻量卷积层
+- 整个网络端到端训练
+
+**Faster R-CNN 的结构（一个网络，两个任务）：**
+
+```
+输入图片
+   ↓
+┌─────────────┐
+│  Backbone    │  ← 共享的 CNN（如 ResNet），只跑一次
+└─────┬───────┘
+      │ feature map
+      ├──────────────────┐
+      ↓                  ↓
+┌───────────┐    ┌──────────────┐
+│   RPN     │    │ Detection    │
+│ "哪里有    │    │ Head         │
+│  东西？"   │    │ "那是什么？"  │
+└───────────┘    └──────────────┘
+```
+
+RPN 不是 CNN 的变体，而是建在 CNN feature map 之上的一个小网络。Backbone 是共享的，RPN 和 Detection Head 都在同一个 feature map 上工作。
+
+| 版本 | 候选区域来源 | 速度 |
+|------|------------|------|
+| R-CNN | Selective Search | 很慢，每个框单独过 CNN |
+| Fast R-CNN | Selective Search | 快一些，共享 CNN 计算 |
+| Faster R-CNN | RPN（神经网络自己学） | 快很多，端到端训练 |
+
+### YOLO（One-Stage，单阶段）
+
+YOLO = You Only Look Once，把检测问题变成回归问题。
+
+**核心思路：**
+
+1. 把图片分成 S×S 网格（YOLOv1 用 7×7）
+2. 每个格子直接预测：框的位置 + 置信度 + 类别概率
+3. 一次前向传播全部搞定
+
+**每个格子输出（YOLOv1）：**
+
+- 每个框（×2）：$x, y, w, h, confidence$（5 个值）
+- 类别概率（×20）：20 个类别
+- 合计：$2 \times 5 + 20 = 30$ 个数
+- 整张图：$7 \times 7 \times 30 = 1470$ 个数
+
+**网络结构：**
+
+```
+输入图片 (448×448)
+    ↓
+24 层卷积（特征提取，借鉴 GoogLeNet）
+    ↓
+2 层全连接
+    ↓
+输出 (7×7×30 张量)
+```
+
+**损失函数是混合的：**
+
+```
+总损失 = 位置损失（MSE，回归性质）
+       + 置信度损失（MSE，回归性质）
+       + 分类损失（分类性质）
+```
+
+位置部分像回归，分类部分像传统分类，联合训练。CNN 不一定要用 CE loss——CNN 只是特征提取器，最后接什么损失函数取决于任务。
+
+**多任务输出头 ≠ Two-Stage：**
+
+- Two-Stage：流程分两步，先找框再分类，串行有先后
+- 多任务输出头：同一次前向传播，同时输出多种信息，像一张试卷同时有选择题和计算题，一次交卷
+
+### YOLO vs R-CNN 对比
+
+| | R-CNN 系列 | YOLO |
+|--|-----------|------|
+| 类型 | Two-Stage | One-Stage |
+| 思路 | 先找候选框，再分类 | 直接回归位置 + 类别 |
+| 速度 | 慢（精确） | 快（实时） |
+| 适用场景 | 需要最高精度（医学影像） | 需要实时检测（自动驾驶、监控） |
+
+YOLO 从 2015 年的 v1 发展到 2026 年的 YOLO26，最新版本在精度上已追上两阶段方法，同时保持实时性能。
+
+---
+
+## 6. OCR 中的 CNN
+
+OCR（光学字符识别）经历了几个阶段：
+
+| 阶段 | 方法 | 特点 |
+|------|------|------|
+| 传统 | 模板匹配 + 手工特征 | 不涉及深度学习 |
+| 经典深度学习 | CNN + RNN（CRNN） | CNN 提取视觉特征，RNN 处理序列 |
+| 现代 | Vision Transformer / VLM | 端到端，处理复杂排版 |
+
+CNN 在 OCR 中的角色是**特征提取器**：识别笔画、边缘等视觉特征。但文字有顺序，所以还需要 RNN/LSTM 处理序列关系。现在越来越多用 Transformer 替代 CNN+RNN 的组合。
+
+---
+
+## 7. 面试要点速查
+
+- VGG 的贡献：用更小的 3×3 卷积核堆更深的网络
+- VGG 的 3 层 FC 是历史遗留，后来被 Global Average Pooling 取代
+- ResNet 的 Skip Connection：$H(x) = F(x) + x$，梯度加了 $+1$ 不会消失
+- 深度学习发展史 ≈ 对抗梯度消失的历史
+- Deep Dream = Gradient Ascent（最大化激活）；Style Transfer = Gradient Descent（最小化损失）
+- R-CNN 系列是 Two-Stage：先找框再分类
+- YOLO 是 One-Stage：把检测当回归，一次前向传播输出所有信息
+- YOLO 的损失函数是混合的：位置用 MSE（回归），类别用 CE（分类）
+- 多任务输出头 ≠ Two-Stage，前者是同时输出，后者是串行流程
+- CNN 不绑定某种损失函数，它只是特征提取器
+
+# 人工神经网络 (ANN) 完整复习笔记
+
+## 1. 为什么需要多层神经网络？
+
+单层神经网络（即 Logistic Regression）只能学习线性决策边界。如果多层网络**不使用非线性激活函数**，多个线性变换的组合仍然是线性变换，等价于单层模型。
+
+激活函数（ReLU、Sigmoid、Tanh）在每一层引入非线性，使深层网络能够表达复杂的非线性关系。
+
+**核心思想：** 隐藏层负责将原始空间中线性不可分的数据变换到一个新的特征空间，使其变得线性可分；最后一层在新空间中做线性分类。这就是"表示学习"（Representation Learning）。
+
+---
+
+## 2. 激活函数
+
+| 激活函数 | 公式 | 特点 |
+|---------|------|------|
+| Sigmoid | $\sigma(v) = \frac{1}{1+e^{-v}}$ | 输出 (0,1)，适合二分类输出层 |
+| ReLU | $\max(0, v)$ | 计算简单，隐藏层常用 |
+| Tanh | $\frac{e^v - e^{-v}}{e^v + e^{-v}}$ | 输出 (-1,1)，零中心化 |
+| Softmax | $\frac{e^{v_i}}{\sum_j e^{v_j}}$ | 多分类输出层，所有输出之和为 1 |
+
+### Sigmoid vs Softmax
+
+- **Sigmoid**：二分类，每个输出独立映射到 (0,1)
+- **Softmax**：多分类（互斥），所有输出之和为 1，形成概率分布
+- 不能用多个 Sigmoid 代替 Softmax，因为多个 Sigmoid 输出之和不等于 1
+
+---
+
+## 3. 前向传播 (Forward Pass)
+
+单个神经元的前向传播过程：
+
+1. 计算加权和：$v = \sum_p w_p \cdot x_p + b$
+2. 通过激活函数：$y = \sigma(v)$
+
+### 纯 Python 实现
+
+```python
+import math
+
+def forward_pass(x, w):
+    y = []
+    for n in range(len(x)):
+        v = 0
+        for p in range(len(x[0])):
+            v = v + x[n][p] * w[p]
+        y.append(1 / (1 + math.e**(-v)))
+    return y
+```
+
+### NumPy 向量化实现
+
+```python
+import numpy as np
+
+def forward_pass(x, w):
+    x, w = np.array(x), np.array(w)
+    v = x @ w
+    return 1 / (1 + np.exp(-v))
+```
+
+---
+
+## 4. Bias（偏置项）
+
+**作用：** 让决策边界不必过原点。
+
+- 没有 bias：$v = w \cdot x$，决策边界被迫过原点
+- 有 bias：$v = w \cdot x + b$，决策边界可以平移到任意位置
+
+Bias 是可训练参数，通过梯度下降更新：
+
+$$\frac{\partial E}{\partial b} = (y - t) \cdot y(1-y) \cdot 1$$
+
+与权重梯度的唯一区别是不乘 $x_p$（因为 bias 不依赖输入）。
+
+如果数据的决策边界恰好过原点，bias 会自然趋近于 0。但实践中始终加上 bias，让模型自己学。
+
+---
+
+## 5. 损失函数
+
+### MSE（均方误差）
+
+$$L = (y - t)^2$$
+
+适合回归问题。假设误差服从高斯分布。
+
+### Cross-Entropy（交叉熵）
+
+**Binary Cross-Entropy（二分类）：**
+
+$$L = -[t \log(y) + (1-t) \log(1-y)]$$
+
+**Categorical Cross-Entropy（多分类）：**
+
+$$L = -\sum_i t_i \log(y_i)$$
+
+适合分类问题。假设数据服从伯努利/多项分布。
+
+### 为什么分类用 Cross-Entropy 而不是 MSE？
+
+关键在于梯度。以 Sigmoid 输出为例：
+
+**MSE 的梯度：**
+
+$$\frac{\partial L}{\partial w} = 2(y-t) \cdot y(1-y) \cdot x$$
+
+包含 $y(1-y)$（Sigmoid 导数），当 $y$ 接近 0 或 1 时趋近于 0 → **梯度消失**
+
+**Cross-Entropy 的梯度：**
+
+$$\frac{\partial L}{\partial y} = \frac{y-t}{y(1-y)}$$
+
+乘以 Sigmoid 导数 $y(1-y)$ 后，分子分母**完美抵消**：
+
+$$\frac{\partial L}{\partial w} = (y - t) \cdot x$$
+
+梯度干净，不存在梯度消失问题。
+
+**Softmax + Categorical CE 也有同样的抵消效果：**
+
+$$\frac{\partial L}{\partial v_i} = y_i - t_i$$
+
+### 总结
+
+| 场景 | 激活函数 | 损失函数 | 梯度 |
+|------|---------|---------|------|
+| 回归 | — | MSE | — |
+| 二分类 | Sigmoid | Binary CE | $y - t$ |
+| 多分类 | Softmax | Categorical CE | $y_i - t_i$ |
+
+---
+
+## 6. 梯度下降与反向传播
+
+### 链式法则推导
+
+$$\frac{\partial E}{\partial w_p} = \frac{\partial E}{\partial y} \cdot \frac{\partial y}{\partial v} \cdot \frac{\partial v}{\partial w_p}$$
+
+以 MSE + Sigmoid 为例：
+
+- $\frac{\partial E}{\partial y} = 2(y - t)$
+- $\frac{\partial y}{\partial v} = y(1-y)$（Sigmoid 导数）
+- $\frac{\partial v}{\partial w_p} = x_p$
+
+权重更新：$w = w - \alpha \cdot \frac{\partial E}{\partial w}$
+
+### SGD（随机梯度下降）
+
+每处理一个样本就更新权重，而非等整个 epoch 结束。
+
+```python
+def simple_ann(x, w, t, iterations, learning):
+    E = []
+    for ii in range(iterations):
+        err, y = [], []
+        for n in range(len(x)):
+            # 前向传播
+            v = sum(x[n][p] * w[p] for p in range(len(x[0])))
+            y.append(1 / (1 + math.e**(-v)))
+            err.append((y[n] - t[n])**2)
+            # 梯度下降（每个样本后更新）
+            for p in range(len(w)):
+                d = x[n][p] * (y[n]-t[n]) * (1-y[n]) * y[n]
+                w[p] = w[p] - learning * d
+        E.append(sum(err) / len(x))
+    return y, w, E
+```
+
+---
+
+## 7. Momentum（动量）
+
+### 问题
+
+普通 SGD 只看当前梯度方向，容易在窄谷中震荡，或卡在局部最小值。
+
+### 公式
+
+$$m = \beta \cdot m + g$$
+$$w = w - \alpha \cdot m$$
+
+- $m$：累积动量（历史梯度的指数加权平均）
+- $\beta$：动量系数，通常 0.9
+- $g$：当前梯度
+
+### 展开理解
+
+- 第1步：$m = g_1$
+- 第2步：$m = 0.9 \cdot g_1 + g_2$
+- 第3步：$m = 0.81 \cdot g_1 + 0.9 \cdot g_2 + g_3$
+
+越早的梯度权重越小（指数衰减），$m$ 是近期梯度的加权平均。
+
+### 效果
+
+- 梯度方向一致 → 动量累积增大 → **加速收敛**
+- 梯度方向震荡 → 正负抵消 → **抑制震荡**
+
+### 延伸：Adam 优化器
+
+Adam = Momentum + 自适应学习率，是目前最常用的优化器。
+
+---
+
+## 8. PyTorch 实现
+
+```python
+import torch
+import torch.nn as nn
+
+# 定义模型
+class SimpleANN(nn.Module):
+    def __init__(self, input_size, hidden_size, output_size):
+        super().__init__()
+        self.hidden = nn.Linear(input_size, hidden_size)  # 自带 bias
+        self.output = nn.Linear(hidden_size, output_size)
+
+    def forward(self, x):
+        x = torch.relu(self.hidden(x))    # 隐藏层 + ReLU
+        x = torch.sigmoid(self.output(x))  # 输出层 + Sigmoid
+        return x
+
+# 初始化
+model = SimpleANN(input_size=2, hidden_size=4, output_size=1)
+criterion = nn.MSELoss()       # 或 nn.BCELoss()
+optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+
+# 训练循环
+for epoch in range(1000):
+    y_pred = model(X)                 # 前向传播
+    loss = criterion(y_pred, y_true)  # 计算损失
+    optimizer.zero_grad()             # 清空梯度（PyTorch 默认累加梯度）
+    loss.backward()                   # 反向传播（自动链式法则）
+    optimizer.step()                  # 更新权重
+```
+
+**关键点：**
+
+- `nn.Linear` 自动包含权重和 bias
+- `loss.backward()` 自动计算所有梯度
+- `optimizer.step()` 自动执行 $w = w - \alpha \cdot \nabla w$
+- `zero_grad()` 必须调用，因为 PyTorch 默认累加梯度
+
+---
+
+## 9. 面试要点速查
+
+- 多层网络没有激活函数 = 退化为线性模型
+- 隐藏层的作用 = 特征变换，使数据线性可分
+- Bias = 让决策边界可以平移，是可训练参数
+- 分类用 Cross-Entropy 不用 MSE = 避免梯度消失
+- CE + Sigmoid/Softmax 梯度简化为 $y - t$ = 天然配对
+- Momentum = 历史梯度的指数加权平均，加速收敛 + 抑制震荡
+- Adam = Momentum + 自适应学习率
+- 能手写前向传播 + 反向传播 + NumPy 向量化 + PyTorch 版本

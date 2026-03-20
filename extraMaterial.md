@@ -2,6 +2,74 @@
 ## 14 Longest Common Prefix
 ## 27 Remove Element
 ## 169 Majority Element
+
+## 5. Majority Element（多数元素）
+
+**思路一：HashMap 计数（最直觉）**
+
+遍历数组统计次数，找到出现超过 `n//2` 次的元素。
+
+```python
+def majorityElement(self, nums):
+    count = {}
+    for n in nums:
+        count[n] = count.get(n, 0) + 1
+        if count[n] > len(nums) // 2:
+            return n
+```
+
+时间 O(n)，空间 O(n)
+
+---
+
+**思路二：排序**
+
+排序后中间位置一定是多数元素（因为它超过一半）。
+
+```python
+def majorityElement(self, nums):
+    nums.sort()
+    return nums[len(nums) // 2]
+```
+
+时间 O(n log n)，空间 O(1)
+
+---
+
+**思路三：Boyer-Moore 投票算法（最优）**
+
+多数元素和其他所有元素互相抵消，最后剩下的一定是它。
+
+```python
+def majorityElement(self, nums):
+    candidate, count = None, 0
+    for n in nums:
+        if count == 0:
+            candidate = n       # 选当前元素为候选
+        count += 1 if n == candidate else -1
+    return candidate
+```
+
+**模拟一遍** `[2, 2, 1, 1, 2]`：
+
+```
+n=2: count=0 → candidate=2, count=1
+n=2:                        count=2
+n=1:                        count=1  # 抵消
+n=1:                        count=0  # 抵消
+n=2: count=0 → candidate=2, count=1
+返回 2 ✅
+```
+
+**三种方法对比：**
+
+| 方法 | 时间 | 空间 | 核心思想 |
+|------|------|------|---------|
+| HashMap | O(n) | O(n) | 直接计数 |
+| 排序 | O(n log n) | O(1) | 中位数必是答案 |
+| Boyer-Moore | O(n) | O(1) | 多数派抵消少数派后必剩余 |
+
+---
 ## 705 Design HashSet
 ## 706 Design HashMap
 ## 912 Sort an Array
@@ -188,7 +256,159 @@ def sortColors(self, nums):
 ## 229 Majority Element II
 ## 560 Subarray Sum Equals K
 ## 41 First Missing Positive
+## 43 Multiply String
+
+**考点：手动模拟竖式乘法**（不能用 `int()` 直接转换）
+
+---
+
+### 如何提取数字字符的值
+
+```python
+ord('5') - ord('0')  # → 5
+```
+
+ASCII 表中 `'0'`~`'9'` 连续排列（48~57），任意数字字符减去 `'0'` 即得对应整数。
+
+---
+
+### 核心：位置关系
+
+`num1[i]` × `num2[j]` 的结果一定落在 `res[i+j+1]`，进位传到 `res[i+j]`。
+
+```
+    1 2 3      index: 0 1 2
+  ×   4 5      index:   0 1
+  -------
+结果最多 5 位   index: 0 1 2 3 4
+
+num1[2]='3' × num2[1]='5' → res[2+1+1] = res[4]  ✅ 个位
+num1[2]='3' × num2[0]='4' → res[2+0+1] = res[3]  ✅ 十位
+```
+
+`+1` 的原因：结果数组第 0 位预留给最高位进位，所以所有位置整体右移一位。
+
+---
+
+### 代码
+
+```python
+class Solution:
+    def multiply(self, num1: str, num2: str) -> str:
+        m, n = len(num1), len(num2)
+        res = [0] * (m + n)  # 列表，不能用字符串（字符串不可变）
+
+        for i in range(m - 1, -1, -1):
+            for j in range(n - 1, -1, -1):
+                d1 = ord(num1[i]) - ord('0')
+                d2 = ord(num2[j]) - ord('0')
+
+                pos = i + j + 1
+                res[pos] += d1 * d2
+                res[pos - 1] += res[pos] // 10  # 进位传到上一位
+                res[pos] %= 10                   # 当前位只保留个位
+
+        result = ''.join(map(str, res)).lstrip('0')
+        return result if result else '0'
+```
+
+---
+
+### 常见 Bug
+
+**Bug 1：用字符串存结果**
+```python
+res = '0' * (m + n)
+res[k] = ...  # ❌ 字符串不支持下标赋值，必须用列表
+```
+
+**Bug 2：用全局 k 递减代替固定位置**
+```python
+# ❌ 错误：k 是全局递减的，无法对应正确的乘法位置
+k = m + n - 1
+res[k] = (d1 * d2) % 10
+k -= 1
+
+# ✅ 正确：位置由 i+j+1 唯一确定
+pos = i + j + 1
+res[pos] += d1 * d2
+```
+
+**Bug 3：进位时机错误**
+
+每对 `(i,j)` 相乘后应**立即**将进位传给 `res[pos-1]`，不能用全局 carry 在外层处理，因为多对乘法会累加到同一个位置。
+
+**Bug 4：忘记处理全零情况**
+```python
+# lstrip('0') 会把 "0000" 变成 ""，需要兜底
+return result if result else '0'
+```
+
+| | 时间复杂度 | 空间复杂度 |
+|--|-----------|-----------|
+| Multiply Strings | O(m × n) | O(m + n) |
+
+---
 ## 344 Reverse String
+
+## 题目
+
+原地反转字符数组，不能返回新数组。
+
+## 常见错误
+
+```python
+s = s[::-1]  # ❌ 创建新 list，局部变量指向新 list，原 list 不变
+```
+
+```
+调用前：外部 s → [h, e, l, l, o]
+函数内：s = s[::-1]
+        局部 s → [o, l, l, e, h]（新 list）
+        外部 s → [h, e, l, l, o]（没变）
+```
+
+`s =` 是改变局部变量的指向，`s[:] =` 才是修改原 list 的内容。
+
+## 解法：双指针
+
+左右两个指针，相向而行，逐个交换。
+
+```python
+class Solution:
+    def reverseString(self, s: List[str]) -> None:
+        l, r = 0, len(s) - 1
+        while l < r:
+            s[l], s[r] = s[r], s[l]
+            l += 1
+            r -= 1
+```
+
+## 模拟示例
+
+`s = ["h", "e", "l", "l", "o"]`
+
+```
+l=0, r=4: 交换 h ↔ o → [o, e, l, l, h]
+l=1, r=3: 交换 e ↔ l → [o, l, l, e, h]
+l=2, r=2: l == r，停止
+```
+
+结果：`["o", "l", "l", "e", "h"]` ✅
+
+## `s =` vs `s[:] =`
+
+| 写法 | 效果 |
+|------|------|
+| `s = s[::-1]` | 局部变量指向新 list，原 list 不变 ❌ |
+| `s[:] = s[::-1]` | 原 list 内容被替换 ✅ |
+| 双指针交换 | 真正的原地修改 ✅ |
+
+## 复杂度
+
+- **时间**：O(n)
+- **空间**：O(1)（原地修改）
+
 ## 680 Valid Palindrome II
 ## 1768 Merge Strings Alternately
 ## 88 Merge Sorted Array
@@ -269,10 +489,174 @@ nums1 = [1, 2, 3, 0, 0, 0]   nums2 = [2, 5, 6]
 - 空间：O(1)，原地操作
 
 ## 26 Remove Duplicates From Sorted Array
+# 删除有序数组中的重复项 — 完整讲解
+
+## 题目描述
+
+给你一个**非严格递增排列**的整数数组 `nums`，请你**原地**删除重复出现的元素，使每个元素只出现一次，返回删除后数组的新长度。
+
+---
+
+## 代码
+
+```python
+class Solution:
+    def removeDuplicates(self, nums: List[int]) -> int:
+        l = 1
+        for r in range(1, len(nums)):
+            if nums[r] != nums[r-1]:
+                nums[l] = nums[r]
+                l += 1
+        return l
+```
+
+---
+
+## 核心思路：双指针
+
+用两个指针 `l`（左/慢）和 `r`（右/快）：
+
+- `r` 负责**遍历扫描**整个数组
+- `l` 负责**记录下一个不重复元素应该放的位置**
+
+> 因为数组已经有序，**重复的元素一定相邻**，只需比较 `nums[r]` 和 `nums[r-1]` 是否相同即可。
+
+---
+
+## 为什么 `l` 从 1 开始？
+
+第一个元素 `nums[0]` 一定保留，不需要动它，所以 `l` 直接从位置 1 开始准备接收新元素。
+
+---
+
+## 用例子走一遍
+
+输入：`nums = [1, 1, 2, 3, 3]`
+
+初始状态：`l = 1`，`r` 从 1 开始遍历
+
+| r | nums[r] | nums[r-1] | 是否不同 | 操作 | l | 数组状态 |
+|---|---------|-----------|----------|------|---|----------|
+| 1 | 1 | 1 | ❌ 相同 | 跳过 | 1 | [1, 1, 2, 3, 3] |
+| 2 | 2 | 1 | ✅ 不同 | nums[1]=2, l++ | 2 | [1, 2, 2, 3, 3] |
+| 3 | 3 | 2 | ✅ 不同 | nums[2]=3, l++ | 3 | [1, 2, 3, 3, 3] |
+| 4 | 3 | 3 | ❌ 相同 | 跳过 | 3 | [1, 2, 3, 3, 3] |
+
+返回 `l = 3`，有效部分为 `nums[0:3] = [1, 2, 3]` ✓
+
+---
+
+## 为什么比较 `nums[r]` 和 `nums[r-1]` 而不是 `nums[l-1]`？
+
+两种写法都正确，效果等价：
+
+```python
+# 写法一：和前一个位置比（本题代码）
+if nums[r] != nums[r-1]:
+
+# 写法二：和慢指针前一位比
+if nums[r] != nums[l-1]:
+```
+
+因为数组有序，`r` 是连续往前走的，`nums[r-1]` 就是上一个扫描过的值，和 `nums[l-1]` 在逻辑上等价。
+
+---
+
+## 易错点
+
+```python
+# ❌ l 从 0 开始
+l = 0
+for r in range(1, len(nums)):
+    if nums[r] != nums[r-1]:
+        nums[l] = nums[r]   # 会覆盖掉 nums[0]！
+        l += 1
+```
+
+`nums[0]` 是第一个元素，必须保留，`l` 必须从 1 开始，给它留出位置。
+
+---
+
+## 复杂度分析
+
+| | 复杂度 |
+|---|---|
+| 时间 | O(n)，r 遍历一次数组 |
+| 空间 | O(1)，原地操作，无额外空间 |
+
+---
+
+## 扩展：如果每个元素最多保留 k 次？
+
+把条件改为和 `l-k` 位置比较即可：
+
+```python
+# 每个元素最多保留 2 次
+def removeDuplicates(self, nums):
+    l = 0
+    for r in range(len(nums)):
+        if l < 2 or nums[r] != nums[l-2]:
+            nums[l] = nums[r]
+            l += 1
+    return l
+```
+
+本题是 k=1 的特殊情况。
+
 ## 18 4Sum
 ## 189 Rotate Array
 ## 881 Boats to Save People
 ## 219 Contains Duplicate II
+**考点：滑动窗口 + HashSet**
+
+判断是否存在两个下标 `i, j` 使得 `nums[i] == nums[j]` 且 `|i - j| <= k`。
+
+---
+
+### 暴力解（可通过，非最优）
+
+```python
+class Solution:
+    def containsNearbyDuplicate(self, nums: List[int], k: int) -> bool:
+        for l in range(len(nums)):
+            for r in range(l + 1, min(len(nums), l + k + 1)):
+                if nums[l] == nums[r]:
+                    return True
+        return False
+```
+
+时间 O(n×k)，空间 O(1)
+
+---
+
+### 最优解：滑动窗口 + HashSet
+
+维护一个大小为 k 的窗口，用 HashSet 存窗口内元素，新元素进来前先查重。
+
+```python
+class Solution:
+    def containsNearbyDuplicate(self, nums: List[int], k: int) -> bool:
+        window = set()
+        l = 0
+        for r in range(len(nums)):
+            if r - l > k:             # 窗口超过大小 k，移除最左边
+                window.remove(nums[l])
+                l += 1
+            if nums[r] in window:     # 新元素已在窗口内，找到重复
+                return True
+            window.add(nums[r])
+        return False
+```
+
+**窗口大小判断：**
+
+题目要求 `|i - j| <= k`，窗口最多容纳 k+1 个元素（包含两端），所以 `r - l > k` 时需要收缩窗口。
+
+| | 时间复杂度 | 空间复杂度 |
+|--|-----------|-----------|
+| 暴力双循环 | O(n×k) | O(1) |
+| 滑动窗口 + Set | O(n) | O(k) |
+
 ## 209 Minimum Size Subarray Sum
 ## 658 Find K Closest Elements
 ## 682 Baseball Game
@@ -842,6 +1226,183 @@ def inorderTraversal(self, root):
 ## 144 Binary Tree Preorder Traversal
 ## 145 Binary Tree Postorder Traversal
 ## 701 Insert into a Binary Search Tree
+# BST 插入节点 — 完整讲解
+
+## 核心性质
+
+BST 的核心性质：**左子树所有值 < 根节点 < 右子树所有值**
+
+利用这个性质，插入时只需不断"缩小范围"找到合适的空位即可。
+
+---
+
+## 递归思路
+
+每次比较 `val` 和当前节点值：
+
+- `val < root.val` → 应该插入**左子树**，递归处理左边
+- `val > root.val` → 应该插入**右子树**，递归处理右边
+- 当前节点为 `null` → 找到插入位置，**新建节点返回**
+
+```python
+def insertIntoBST(root, val):
+    if root is None:
+        return TreeNode(val)   # 插入点
+    if val < root.val:
+        root.left = insertIntoBST(root.left, val)
+    else:
+        root.right = insertIntoBST(root.right, val)
+    return root
+```
+
+---
+
+## 用具体例子走一遍
+
+假设树长这样，插入 `val = 3`：
+
+```
+    4
+   / \
+  2   6
+```
+
+**第1次调用** `insert(4, 3)`
+- 3 < 4，所以往左走
+- `root.left = insert(2, 3)` ← 先去求右边这个值
+
+**第2次调用** `insert(2, 3)`
+- 3 > 2，所以往右走
+- `root.right = insert(null, 3)` ← 继续往下求
+
+**第3次调用** `insert(null, 3)`
+- root 是 null！
+- 创建新节点，`return TreeNode(3)` ← **从这里开始往回传**
+
+### 返回过程（关键！）
+
+```
+第3次返回 TreeNode(3)
+        ↓
+回到第2次：root.right = TreeNode(3)  ← 3 挂到 2 的右边
+           return root(2)             ← 把 2 这棵子树返回
+        ↓
+回到第1次：root.left = 2的子树       ← 重新接回 4 的左边
+           return root(4)
+```
+
+最终结果：
+
+```
+    4
+   / \
+  2   6
+   \
+    3   ✓
+```
+
+---
+
+## 为什么要 `root.left = ...` 而不是直接递归？
+
+```python
+# ❌ 错误写法
+insertIntoBST(root.left, val)  # 返回值被丢弃，树没变化
+
+# ✅ 正确写法
+root.left = insertIntoBST(root.left, val)  # 把结果接回来
+```
+
+绝大多数情况下，`root.left` 等于传进去的子树（没变化），只有在**找到插入点那一层**，才会把新节点"传递回来"并接上。
+
+---
+
+## 为什么要 `return root`？
+
+### 情况一：空树
+
+```python
+insertIntoBST(None, 3)
+```
+
+这说明**整棵树是空树**，新节点就是整棵树的根，必须 return 出去，外面才能接住它。
+
+### 情况二：正常插入
+
+每一层都需要把子树"接回来"，所以每一层都要 return 自己：
+
+- **非插入层**：return 原来的 root，没有变化，只是传回去让上层接着用
+- **插入层**（root == null 那层）：return 新节点，上层接住后挂到树上
+
+### 如果不 return root 会怎样？
+
+```python
+# 假设只在 null 时 return，其他层不 return
+if root is None:
+    return TreeNode(val)
+if val < root.val:
+    root.left = insertIntoBST(root.left, val)
+# 没有 return root ← 函数返回 None
+```
+
+上层会执行：
+
+```python
+root.left = None  # ← 把整个左子树清空了！
+```
+
+> **一句话总结：** `return root` 不是因为 root 变了，而是因为**上层需要一个返回值来接**，不 return 就会把子树弄丢。
+
+---
+
+## 新节点一定插在叶子位置
+
+> 新节点**一定插在叶子位置** —— 因为 BST 插入沿路径走到底，不需要调整已有结构（不像平衡树 AVL/红黑树需要旋转）。
+
+---
+
+## 迭代写法
+
+用一个指针遍历树，找到第一个"该往下走但子节点为空"的地方，直接挂上去：
+
+```python
+def insertIntoBST(root, val):
+    if not root:
+        return TreeNode(val)
+    cur = root
+    while cur:
+        if val < cur.val:
+            if cur.left is None:
+                cur.left = TreeNode(val)
+                break
+            cur = cur.left
+        else:
+            if cur.right is None:
+                cur.right = TreeNode(val)
+                break
+            cur = cur.right
+    return root
+```
+
+---
+
+## 复杂度分析
+
+|  | 平均 | 最坏（退化链表） |
+|---|---|---|
+| 时间 | O(log n) | O(n) |
+| 空间（递归栈） | O(log n) | O(n) |
+
+---
+
+## 普通 BST vs 平衡树
+
+| | 普通 BST | 平衡树 (AVL/红黑) |
+|---|---|---|
+| 插入方式 | 只找空位挂上 | 插入后还要旋转调整 |
+| 维持性质 | BST 大小顺序 | BST + 高度平衡 |
+| 复杂度 | 平均 O(log n) | 严格 O(log n) |
+
 ## 450 Delete Node in a BST
 
 ## 核心思路
@@ -1209,6 +1770,68 @@ def isAlienSorted(self, words, order):
 - **LeetCode 242** — Valid Anagram（字符频率比较）
 
 ## 997 Find the Town Judge
+# 找到小镇的法官
+
+## 题意
+
+小镇有 `n` 个人，编号 `1` 到 `n`。法官的条件：被所有其他人信任（入度 = n-1），且不信任任何人（出度 = 0）。
+
+## 解法一：入度 + 出度
+
+```python
+def findJudge(n, trust):
+    indegree = defaultdict(int)
+    outdegree = defaultdict(int)
+    for a, b in trust:
+        indegree[b] += 1
+        outdegree[a] += 1
+    for i in range(1, n + 1):  # 编号从1开始
+        if indegree[i] == n - 1 and outdegree[i] == 0:
+            return i
+    return -1
+```
+
+## 解法二：一个数组（更简洁）
+
+```python
+def findJudge(n, trust):
+    count = [0] * (n + 1)
+    for a, b in trust:
+        count[a] -= 1  # 出度
+        count[b] += 1  # 入度
+    for i in range(1, n + 1):
+        if count[i] == n - 1:
+            return i
+    return -1
+```
+
+入度 - 出度 = n-1，说明被所有人信任且不信任任何人。
+
+## 示例
+
+```
+n = 3, trust = [[1,3],[2,3]]
+
+解法一:
+  indegree:  {3: 2}
+  outdegree: {1: 1, 2: 1}
+  i=3: indegree=2==n-1, outdegree=0 → 返回 3
+
+解法二:
+  count = [0, -1, -1, 2]
+           0   1   2  3
+  count[3] = 2 == n-1 → 返回 3
+```
+
+## 易错点
+
+人的编号从 `1` 到 `n`，遍历时用 `range(1, n+1)` 而不是 `range(n)`。
+
+## 复杂度
+
+- 时间：O(n + E)，E 为 trust 数组长度
+- 空间：O(n)
+
 ## 752 Open The Lock
 ## 1462 Course Schedule IV
 
@@ -1325,6 +1948,120 @@ V = numCourses（顶点数），E = len(prerequisites)（边数）
 ## 399 Evaluate Division
 ## 310 Minimum Height Trees
 ## 1631 Path with Minimum Effort
+**考点：Dijkstra 变种**
+ 
+effort = 路径上所有相邻格子高度差的**最大值**，求从左上到右下的最小 effort。
+ 
+---
+ 
+### 和普通最短路径的区别
+ 
+| | 普通最短路径 | 这题 |
+|--|------------|------|
+| 堆里存 | `(累计距离, node)` | `(最大差值, row, col)` |
+| 更新方式 | `curr_dist + edge_weight` | `max(curr_effort, 边的高度差)` |
+| 核心操作 | 累加 | 取最大值 |
+ 
+用 `max` 而不是累加，是因为 effort 定义就是路径上差值的最大值，每走一步要维护"到目前为止最大的差值"。
+ 
+---
+ 
+### 为什么不需要显式构建 adj
+ 
+网格图的邻居关系固定（上下左右），用方向数组即时生成，边权也动态计算：
+ 
+```python
+directions = [(0,1),(0,-1),(1,0),(-1,0)]
+for dr, dc in directions:
+    nr, nc = r + dr, c + dc
+    weight = abs(heights[nr][nc] - heights[r][c])
+```
+ 
+---
+ 
+### Dijkstra 堆优化版（最优解）
+ 
+```python
+class Solution:
+    def minimumEffortPath(self, heights: List[List[int]]) -> int:
+        visited = set()
+        rows, cols = len(heights), len(heights[0])
+        minHeap = [[0, 0, 0]]  # [effort, row, col]
+ 
+        while minHeap:
+            diff, r, c = heapq.heappop(minHeap)
+            if (r, c) in visited:
+                continue
+            visited.add((r, c))
+ 
+            if (r, c) == (rows-1, cols-1):
+                return diff
+ 
+            for dr, dc in [(0,1),(1,0),(0,-1),(-1,0)]:
+                nr, nc = r + dr, c + dc
+                if nr < 0 or nc < 0 or nr >= rows or nc >= cols or (nr, nc) in visited:
+                    continue
+                newdiff = max(diff, abs(heights[r][c] - heights[nr][nc]))
+                heapq.heappush(minHeap, [newdiff, nr, nc])
+ 
+        return 0
+```
+ 
+用了 `visited` 集合后可以省略 `dist` 数组——堆保证第一次 pop 出来的就是最优解。
+ 
+**常见 Bug：** `return 0` 写在 while 循环内部，导致第一次迭代就返回。
+ 
+---
+ 
+### 朴素 Dijkstra（无堆）
+ 
+```python
+class Solution:
+    def minimumEffortPath(self, heights: List[List[int]]) -> int:
+        rows, cols = len(heights), len(heights[0])
+        dist = [[float('inf')] * cols for _ in range(rows)]
+        dist[0][0] = 0
+        visited = set()
+ 
+        while True:
+            curr_dist, r, c = float('inf'), -1, -1
+            for i in range(rows):
+                for j in range(cols):
+                    if (i, j) not in visited and dist[i][j] < curr_dist:
+                        curr_dist, r, c = dist[i][j], i, j
+ 
+            if r == -1:
+                break
+            if (r, c) == (rows-1, cols-1):
+                return dist[r][c]
+            visited.add((r, c))
+ 
+            for dr, dc in [(0,1),(1,0),(0,-1),(-1,0)]:
+                nr, nc = r + dr, c + dc
+                if 0 <= nr < rows and 0 <= nc < cols and (nr, nc) not in visited:
+                    new_dist = max(curr_dist, abs(heights[r][c] - heights[nr][nc]))
+                    if new_dist < dist[nr][nc]:
+                        dist[nr][nc] = new_dist
+ 
+        return dist[rows-1][cols-1]
+```
+ 
+朴素版必须维护 `dist` 数组，因为没有堆自动排序，靠线性扫描找最小值。
+ 
+---
+ 
+### 四种解法对比
+ 
+| 方法 | 时间复杂度 | 核心思想 |
+|------|-----------|---------|
+| Dijkstra + 堆 | O(n log n) | 贪心，每次取最优节点扩展 |
+| Binary Search + BFS | O(n log h) | 二分答案，验证 effort=mid 时能否到达 |
+| SPFA | O(n) 平均 | 队列松弛，节点可重复入队 |
+| Union Find | O(n log n) | 按边权从小到大加边直到起终点连通 |
+ 
+**Binary Search + BFS 的思路：** 答案有单调性（effort 越大越容易到达），二分猜答案，BFS 只走高度差 <= mid 的边验证可达性。
+ 
+**Union Find 的思路：** 本质是 Kruskal 最小生成树变种，把所有边按高度差排序，从小到大加边，直到起点终点连通，此时边权即为答案。
 ## 1489 Find Critical and Pseudo Critical Edges in Minimum Spanning Tree
 ## 2392 Build a Matrix With Conditions
 ## 2709 Greatest Common Divisor Traversal
@@ -1525,72 +2262,212 @@ class Solution:
 ## 63 Unique Paths II
 ## 64 Minimum Path Sum
 ## 1049 Last Stone Weight II
-# LeetCode 1046 - Last Stone Weight
 
-## 题目概述
+**思路：贪心 + 最大堆**
 
-给定一组石头的重量数组 `stones`，每次取出**最重的两块**石头互相碰撞：
+每次取出最重的两块石头相撞，用最大堆模拟。
 
-- 两块一样重 → 都粉碎
-- 不一样重 → 剩余重量 `|x - y|` 放回
+```python
+class Solution:
+    def lastStoneWeight(self, stones: List[int]) -> int:
+        new = [-s for s in stones]
+        heapq.heapify(new)
 
-重复直到剩 ≤ 1 块石头，返回最后剩余的重量（没有则返回 0）。
+        while len(new) > 1:
+            s1 = -1 * heapq.heappop(new)
+            s2 = -1 * heapq.heappop(new)
+            if s1 > s2:
+                heapq.heappush(new, -(s1 - s2))
+
+        return -new[0] if new else 0
+```
+
+**常见 Bug：**
+- `heapq.heapify()` 返回 `None`，不能赋值给变量
+- 返回时要取 `new[0]`（堆顶），不是 `new[-1]`
+
+---
+
+## 2. Last Stone Weight II（最后一块石头的重量 II）
+
+**思路：0/1 背包 DP**
+
+每块石头可以分配 `+1` 或 `-1`，目标是让结果绝对值最小。
+
+**转化：** 把石头分成两组，令总和为 `S`，让其中一组尽量接近 `S//2`，则答案为 `S - 2 * P`。
+
+```python
+class Solution:
+    def lastStoneWeightII(self, stones: List[int]) -> int:
+        S = sum(stones)
+        target = S // 2
+
+        dp = [0] * (target + 1)
+
+        for stone in stones:
+            for j in range(target, stone - 1, -1):
+                dp[j] = max(dp[j], dp[j - stone] + stone)
+
+        P = dp[target]
+        return S - 2 * P
+```
+
+**dp 含义：** `dp[j]` = 背包容量为 `j` 时，能凑出的最大重量（重量 = 价值）
+
+**为什么倒序遍历 j？** 防止同一块石头被重复使用（0/1 背包特性）
+
+**为什么不用堆？**
+
+| | Heap | 有序数组 + 二分 |
+|--|------|----------------|
+| get 复杂度 | O(n log n) | O(log n) |
+| 数据是否破坏 | ❌ pop 会删除 | ✅ 只读 |
+| 适合场景 | 反复取最值 | 有序数据查找 |
+
+---
+## 877 Stone Game
+# 877. Stone Game（石子游戏）
+
+## 题目
+
+偶数堆石子排成一排，Alice 和 Bob 轮流从两端取，Alice 先手，两人都最优操作。总数为奇数所以没有平局。判断 Alice 是否赢。
 
 ## 核心思路
 
-**最大堆（Max Heap）**：每次都需要取最大的两个元素，堆是最优选择。
+不能贪心（每次拿两端较大的），因为有时候故意拿小的能控制未来局面。
 
-Python 的 `heapq` 只提供**最小堆**，所以用**取反**模拟最大堆。
+### 贪心反例
+
+`piles = [3, 9, 1, 2]`
+
+```
+贪心：Alice 拿 3 → Bob 拿 9 → Alice 拿 2 → Bob 拿 1
+Alice: 5, Bob: 10 → Alice 输
+
+最优：Alice 拿 2 → 不管 Bob 拿 3 还是 1，Alice 下轮都能拿 9
+Alice: 11, Bob: 4 → Alice 赢
+```
+
+### 为什么用区间 DP
+
+每次只能拿两端，拿完之后剩下的还是一段连续区间。子问题天然就是"面对某个区间怎么玩最优"。
+
+## DP 定义
+
+`dp[i][j]` = 面对 `piles[i..j]`，**当前玩家**比对手最终多拿的最大石子数。
+
+注意"当前玩家"不固定是 Alice，谁轮到谁就是当前玩家。
+
+## 状态转移
+
+面对 `piles[i..j]`，两个选择：
+
+```
+拿左端：我赚 piles[i]，剩下 [i+1, j] 给对手
+        对手在 [i+1, j] 的优势是 dp[i+1][j]
+        我的净优势 = piles[i] - dp[i+1][j]
+
+拿右端：我赚 piles[j]，剩下 [i, j-1] 给对手
+        对手在 [i, j-1] 的优势是 dp[i][j-1]
+        我的净优势 = piles[j] - dp[i][j-1]
+```
+
+取 max：
+
+```
+dp[i][j] = max(piles[i] - dp[i+1][j], piles[j] - dp[i][j-1])
+```
+
+**为什么是减号**：对手的优势就是我的劣势。对手比我多拿 `dp[i+1][j]`，那我就要减掉这个。
+
+## Base Case
+
+```
+dp[i][i] = piles[i]  （只剩一堆，直接拿走）
+```
+
+## 计算顺序
+
+`dp[i][j]` 依赖 `dp[i+1][j]`（下方）和 `dp[i][j-1]`（左方），所以 i 从下往上、j 从左往右：
+
+```
+        j →
+    0   1   2   3
+i 0 [3]  →   →   →
+  1     [9]  →   →
+  2         [1]  →
+  3             [2]
+
+算 dp[i][j] 需要：
+  ↑ i 从下往上（dp[i+1][j] 已算好）
+  → j 从左往右（dp[i][j-1] 已算好）
+```
 
 ## 代码
 
 ```python
-import heapq
-from typing import List
-
 class Solution:
-    def lastStoneWeight(self, stones: List[int]) -> int:
-        # 取反入堆，模拟最大堆
-        heap = [-s for s in stones]
-        heapq.heapify(heap)  # O(n) 建堆
+    def stoneGame(self, piles):
+        n = len(piles)
+        dp = [[0] * n for _ in range(n)]
 
-        while len(heap) > 1:
-            h1 = -heapq.heappop(heap)  # 最大
-            h2 = -heapq.heappop(heap)  # 次大
-            if h1 > h2:
-                heapq.heappush(heap, -(h1 - h2))
+        # base case：只剩一堆，直接拿
+        for i in range(n):
+            dp[i][i] = piles[i]
 
-        return -heap[0] if heap else 0
+        # i 从下往上，j 从左往右
+        for i in range(n - 2, -1, -1):
+            for j in range(i + 1, n):
+                dp[i][j] = max(
+                    piles[i] - dp[i + 1][j],   # 拿左端
+                    piles[j] - dp[i][j - 1]    # 拿右端
+                )
+
+        return dp[0][n - 1] > 0
 ```
 
-## 关键点速记
+## 模拟示例
 
-| 要点 | 说明 |
-|------|------|
-| 数据结构 | 最大堆（取反模拟） |
-| 建堆方式 | `heapify` O(n) 优于逐个 `heappush` O(n log n) |
-| 入堆/出堆 | 存 `-val`，取出后再取反还原 |
-| 循环条件 | `len(heap) > 1`，剩一个或零个时停止 |
-| 碰撞逻辑 | 相等则都消失（不push）；不等则push差值 |
+`piles = [3, 9, 1, 2]`
+
+**Base case**：
+
+```
+dp[0][0]=3  dp[1][1]=9  dp[2][2]=1  dp[3][3]=2
+```
+
+**i=2**：
+
+```
+dp[2][3] = max(1-2, 2-1) = max(-1, 1) = 1   面对[1,2]，拿2，优势1
+```
+
+**i=1**：
+
+```
+dp[1][2] = max(9-1, 1-9) = max(8, -8) = 8   面对[9,1]，拿9，优势8
+dp[1][3] = max(9-1, 2-8) = max(8, -6) = 8   面对[9,1,2]，拿9，优势8
+```
+
+**i=0**：
+
+```
+dp[0][1] = max(3-9, 9-3) = max(-6, 6) = 6   面对[3,9]，拿9，优势6
+dp[0][2] = max(3-8, 1-6) = max(-5, -5) = -5  面对[3,9,1]，怎么拿都亏
+dp[0][3] = max(3-8, 2-(-5)) = max(-5, 7) = 7  面对[3,9,1,2]，拿2，优势7
+```
+
+`dp[0][3] = 7 > 0` → Alice 赢 ✅
 
 ## 复杂度
 
-- **时间**：O(n log n) — 最多 n-1 轮，每轮 pop/push O(log n)
-- **空间**：O(n) — 堆的大小
+- **时间**：O(n²)
+- **空间**：O(n²)
 
-## 易错点
+## 数学 Trick
 
-1. **忘记取反**：push 差值时也要取反 `-(h1 - h2)`
-2. **空堆处理**：循环结束后堆可能为空，需判断
-3. **逐个 push vs heapify**：功能相同但建堆复杂度不同
+这道题其实 Alice 必赢，直接 `return True`。因为 Alice 可以预先算出奇数位总和和偶数位总和，然后选更大的那组全拿。但面试中通常要求写出 DP 解法。
 
-## 相关题目
-
-- **LeetCode 703** — 数据流中的第 K 大元素（最小堆）
-- **LeetCode 215** — 数组中的第 K 大元素（堆/快速选择）
-- **LeetCode 1046 → 1049** — Last Stone Weight II（DP，进阶版）
-
-## 877 Stone Game
 ## 1140 Stone Game II
 ## 860 Lemonade Change
 ## 918 Maximum Sum Circular Subarray
@@ -2143,7 +3020,198 @@ def mostBooked(self, n, meetings):
 
 ## 168 Excel Sheet Column Title
 ## 1071 Greatest Common Divisor of Strings
+# LeetCode 1071 — Greatest Common Divisor of Strings
+
+## 题目概述
+
+给定两个字符串 `str1` 和 `str2`，找到最长的字符串 `x`，使得 `x` 重复若干次能拼成 `str1`，也能拼成 `str2`。
+
+```
+输入：str1 = "ABCABC", str2 = "ABC"
+输出："ABC"
+
+输入：str1 = "LEET", str2 = "CODE"
+输出：""（不存在公因子）
+```
+
+---
+
+## 核心洞察：这是一道数学题
+
+和 KMP、模式匹配无关。本质就是字符串版本的最大公约数。
+
+### 两个关键点
+
+**第一：怎么判断有没有公因子？**
+
+```python
+str1 + str2 == str2 + str1
+```
+
+如果 `x` 能整除两者，那 `str1 = x × a 次`，`str2 = x × b 次`，两边拼接都是 `x × (a+b) 次`，必然相等。不等就说明不存在公因子。
+
+**第二：公因子多长？**
+
+和数字的 GCD 完全一样：
+
+```
+str1 = "ABCABC"  长度 6
+str2 = "ABC"      长度 3
+gcd(6, 3) = 3
+答案 = str1[:3] = "ABC"
+```
+
+---
+
+## 不需要关心谁长谁短
+
+- 拼接比较两边都试了，顺序无关
+- `gcd(6, 3) = gcd(3, 6) = 3`
+- 公因子在两个字符串开头都存在，`str1[:gcd值]` 或 `str2[:gcd值]` 都一样
+
+---
+
+## 代码
+
+### 用 math.gcd
+
+```python
+from math import gcd
+
+def gcdOfStrings(self, str1, str2):
+    if str1 + str2 != str2 + str1:
+        return ""
+    return str1[:gcd(len(str1), len(str2))]
+```
+
+### 手写 GCD（辗转相除法）
+
+```python
+def gcdOfStrings(self, str1, str2):
+    if str1 + str2 != str2 + str1:
+        return ""
+
+    def gcd(a, b):
+        while b:
+            a, b = b, a % b
+        return a
+
+    return str1[:gcd(len(str1), len(str2))]
+```
+
+### 辗转相除法演练
+
+```
+gcd(6, 4):
+  a=6, b=4 → 4, 2
+  a=4, b=2 → 2, 0
+  b=0，返回 2
+
+gcd(3, 6):
+  a=3, b=6 → 6, 3    ← 自动交换
+  a=6, b=3 → 3, 0
+  b=0，返回 3
+```
+
+原理：`gcd(a, b) = gcd(b, a % b)`，不断缩小直到余数为 0。
+
+---
+
+## 代码逻辑总结
+
+```
+第一步：有没有公因子？  → str1 + str2 == str2 + str1
+第二步：公因子多长？    → gcd(len1, len2)
+第三步：取出来         → str1[:gcd值]
+```
+
+GCD 运算全在长度（数字）上做，字符串只做了拼接比较和切片。
+
+---
+
+## 与类似题目的区别
+
+| | LeetCode 1071（本题） | LeetCode 28 |
+|--|---------------------|-------------|
+| 问题 | 最大公因子串 | 字符串匹配 |
+| 数字类比 | 12 和 8 的 GCD | 12 里包含 3 吗 |
+| 核心操作 | 整除 | 匹配 |
+| 算法 | GCD | KMP |
+
+## 复杂度
+
+- **时间**：O(n + m) — 拼接比较
+- **空间**：O(n + m) — 拼接产生的新字符串
+
+## 相关题目
+
+- **LeetCode 28** — Find the Index of the First Occurrence（KMP 模式匹配）
+- **LeetCode 459** — Repeated Substring Pattern（判断单个字符串是否由重复子串构成）
+
 ## 2807 Insert Greatest Common Divisors in Linked List
+# 链表插入最大公约数节点
+
+## 题意
+
+给定链表，在每对相邻节点之间插入一个新节点，值为两者的最大公约数（GCD）。
+
+## 解法：遍历 + 插入
+
+```python
+from math import gcd
+
+def insertGreatestCommonDivisors(head):
+    curr = head
+    while curr and curr.next:
+        g = gcd(curr.val, curr.next.val)
+        new_node = ListNode(g)
+        new_node.next = curr.next
+        curr.next = new_node
+        curr = new_node.next  # 跳过新节点，防止死循环
+
+    return head
+```
+
+## 逐步示例
+
+输入：`18 → 6 → 10 → 3`
+
+```
+第一步: gcd(18,6)=6   → 18 → [6] → 6 → 10 → 3
+第二步: gcd(6,10)=2   → 18 → 6 → 6 → [2] → 10 → 3
+第三步: gcd(10,3)=1   → 18 → 6 → 6 → 2 → 10 → [1] → 3
+```
+
+输出：`18 → 6 → 6 → 2 → 10 → 1 → 3`
+
+## 关键点
+
+`curr = new_node.next` 跳过刚插入的节点，否则会对新节点和下一个节点再算一次 GCD，导致死循环。
+
+## GCD 辗转相除法
+
+面试可以直接用 `math.gcd`，但要能手写：
+
+```python
+def gcd(a, b):
+    while b:
+        a, b = b, a % b
+    return a
+```
+
+原理：`gcd(a, b) = gcd(b, a % b)`，重复直到余数为 0。
+
+```
+gcd(18, 6):  18%6=0  → 6
+gcd(10, 6):  10%6=4 → 6%4=2 → 4%2=0 → 2
+gcd(10, 3):  10%3=1 → 3%1=0 → 1
+```
+
+## 复杂度
+
+- 时间：O(n)，遍历一次链表
+- 空间：O(1)，不算新插入的节点
+
 ## 867 Transpose Matrix
 ## 13 Roman to Integer
 ## 67 Add Binary
