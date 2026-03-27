@@ -349,6 +349,48 @@ return result if result else '0'
 | Multiply Strings | O(m × n) | O(m + n) |
 
 ---
+## 1131 Maximum of Absolute Value Expression
+**题意：** 给定两个等长整数数组 `arr1` 和 `arr2`，最大化：
+
+```
+|arr1[i] - arr1[j]| + |arr2[i] - arr2[j]| + |i - j|
+```
+
+### 核心技巧：拆绝对值
+
+三个绝对值共 2³ = 8 种符号组合，由于对称性（取反等于交换 i, j），只需 **4 种**。
+
+每种组合形如 `f(i) - f(j)`，最大化即 `max(f) - min(f)`。
+
+**为什么只需 4 种：**
+
+设 `f(i) = s1·arr1[i] + s2·arr2[i] + s3·i`，将 `(s1, s2, s3)` 全部取反等价于交换 i 和 j。而 `max(f) - min(f)` 天然覆盖两个方向，因此固定 `s3 = +1`，只枚举 `s1, s2` 的 4 种组合即可。
+
+```python
+def maxAbsValExpr(arr1, arr2):
+    n = len(arr1)
+    result = 0
+    for s1, s2 in [(1,1), (1,-1), (-1,1), (-1,-1)]:
+        vals = [s1 * arr1[i] + s2 * arr2[i] + i for i in range(n)]
+        result = max(result, max(vals) - min(vals))
+    return result
+```
+
+- **时间：** O(n)
+- **空间：** O(n)
+
+### 举例验证
+
+```
+arr1 = [1, 2, 3, 4]
+arr2 = [-1, 4, 5, 6]
+```
+
+暴力最优：`i=0, j=3 → |1-4| + |-1-6| + |0-3| = 3 + 7 + 3 = 13`
+
+组合 (1,1)：`f = [0, 7, 10, 13]`，`max - min = 13 - 0 = 13` ✅
+
+---
 ## 344 Reverse String
 
 ## 题目
@@ -658,6 +700,114 @@ class Solution:
 | 滑动窗口 + Set | O(n) | O(k) |
 
 ## 209 Minimum Size Subarray Sum
+> **Difficulty:** Medium  
+> Given an array of positive integers `nums` and a positive integer `target`, return the minimal length of a subarray whose sum is greater than or equal to `target`. If there is no such subarray, return `0`.
+
+---
+
+## 1. 直觉做法：暴力枚举所有区间
+
+最直接的想法——枚举每个起点 `i`，再枚举每个终点 `j`，求 `nums[i..j]` 的和，满足条件就更新最小长度。
+
+```python
+def minSubArrayLen(target, nums):
+    n = len(nums)
+    res = float('inf')
+
+    for i in range(n):
+        curr_sum = 0
+        for j in range(i, n):
+            curr_sum += nums[j]
+            if curr_sum >= target:
+                res = min(res, j - i + 1)
+                break  # 已找到以 i 开头的最短，无需继续
+
+    return res if res != float('inf') else 0
+```
+
+| 复杂度 | 值 |
+|--------|------|
+| 时间 | O(n²) |
+| 空间 | O(1) |
+
+**问题：** 当 `n` 很大时太慢，需要优化。
+
+---
+
+## 2. 最优解：滑动窗口
+
+### 关键观察
+
+数组元素**全为正整数**，因此：
+
+- 窗口右扩 → 和**单调递增**
+- 窗口左缩 → 和**单调递减**
+
+这意味着我们可以用**双指针/滑动窗口**，不回退地扫描整个数组。
+
+### 算法步骤
+
+1. 初始化 `left = 0`，`curr_sum = 0`，`res = ∞`
+2. 遍历 `right` 从 `0` 到 `n-1`：
+   - 将 `nums[right]` 加入窗口和
+   - 当 `curr_sum >= target` 时，不断收缩左边界：
+     - 更新 `res = min(res, right - left + 1)`
+     - 减去 `nums[left]`，`left += 1`
+3. 返回 `res`（若仍为 `∞` 则返回 `0`）
+
+### 代码
+
+```python
+def minSubArrayLen(target, nums):
+    left = 0
+    curr_sum = 0
+    res = float('inf')
+
+    for right in range(len(nums)):
+        curr_sum += nums[right]
+
+        while curr_sum >= target:
+            res = min(res, right - left + 1)
+            curr_sum -= nums[left]
+            left += 1
+
+    return res if res != float('inf') else 0
+```
+
+| 复杂度 | 值 |
+|--------|------|
+| 时间 | O(n) — 每个元素最多被 left 和 right 各访问一次 |
+| 空间 | O(1) |
+
+---
+
+## 3. 图解示例
+
+```
+nums = [2, 3, 1, 2, 4, 3],  target = 7
+
+Step 1:  [2  3  1  2] 4  3   sum=8 ≥ 7  → len=4, 收缩左边界
+Step 2:   2 [3  1  2] 4  3   sum=6 < 7  → 继续右扩
+Step 3:   2 [3  1  2  4] 3   sum=10 ≥ 7 → len=4, 收缩
+Step 4:   2  3 [1  2  4] 3   sum=7 ≥ 7  → len=3, 收缩
+Step 5:   2  3  1 [2  4] 3   sum=6 < 7  → 继续右扩
+Step 6:   2  3  1 [2  4  3]  sum=9 ≥ 7  → len=3, 收缩
+Step 7:   2  3  1  2 [4  3]  sum=7 ≥ 7  → len=2 ✅ 最优!
+
+Answer: 2
+```
+
+---
+
+## 4. 总结
+
+| 方法 | 时间 | 空间 | 核心思想 |
+|------|------|------|----------|
+| 暴力枚举 | O(n²) | O(1) | 枚举所有区间 |
+| **滑动窗口** | **O(n)** | **O(1)** | **利用正整数单调性，双指针一次扫描** |
+
+> **滑动窗口能用的前提：** 数组元素全为正数，保证窗口和的单调性。如果有负数，则需要用前缀和 + 二分等其他方法。
+
 ## 658 Find K Closest Elements
 ## 682 Baseball Game
 ## 225 Implement Stack Using Queues
@@ -775,6 +925,146 @@ class Solution:
 ## 374 Guess Number Higher Or Lower
 ## 69 Sqrt(x)
 ## 1011 Capacity to Ship Packages Within D Days
+---
+
+## 题意
+
+传送带上有 `weights` 数组表示的包裹，必须按顺序运输。船每天运一趟，求在 `days` 天内运完的**最小船容量**。
+
+---
+
+## 为什么是二分查找，不是单调栈
+
+题目问的是"最小化某个值，使得满足某个条件"。容量和天数有单调关系：
+
+```
+容量越大 → 需要天数越少
+容量越小 → 需要天数越多
+```
+
+这个单调性就是二分的信号。二分答案 + 贪心验证。
+
+---
+
+## 二分范围
+
+```
+左边界：max(weights)   — 至少能装最重的那个包裹
+右边界：sum(weights)   — 一天全部运完
+```
+
+---
+
+## 代码
+
+```python
+def shipWithinDays(self, weights, days):
+    l = max(weights)
+    r = sum(weights)
+    
+    while l <= r:
+        mid = (l + r) // 2
+        
+        # 贪心：容量为 mid 时需要几天
+        need = 1
+        curr = 0
+        for w in weights:
+            if curr + w > mid:
+                need += 1
+                curr = 0
+            curr += w
+        
+        if need <= days:
+            r = mid - 1   # 够用，试更小的容量
+        else:
+            l = mid + 1   # 不够，容量要更大
+    
+    return l
+```
+
+---
+
+## 为什么是 `need <= days` 不是 `need < days`
+
+```
+need < days  → 容量太大，肯定够用   → 试更小的 → r = mid - 1
+need == days → 刚好够用，更小的也可能行 → 试更小的 → r = mid - 1
+need > days  → 容量不够             → 要更大   → l = mid + 1
+```
+
+前两种操作一样，合并成 `need <= days`。
+
+如果用 `need < days`，当 `need == days` 时会走 `l = mid + 1`，跳过更小的可行答案，结果就错了。
+
+---
+
+## 走例：`weights = [1,2,3,4,5,6,7,8,9,10]`, `days = 5`
+
+```
+l=10, r=55
+
+mid=32: [1,2,3,4,5,6,7][8,9,10]           → 2天 ≤ 5  → r=31
+mid=20: [1,2,3,4,5][6,7][8,9][10]         → 4天 ≤ 5  → r=19
+mid=14: [1,2,3,4][5,6][7][8][9,10]        → 5... 
+        1+2+3+4=10, +5=15>14 → 新天
+        5+6=11, +7=18>14 → 新天
+        7, +8=15>14 → 新天
+        8, +9=17>14 → 新天
+        9, +10=19>14 → 新天  → 6天 > 5  → l=15
+mid=17: [1,2,3,4,5][6,7][8,9][10]         → 4天 ≤ 5  → r=16
+mid=15: [1,2,3,4,5][6,7][8][9][10]        → 5天 ≤ 5  → r=14
+
+l=15 > r=14 → 结束，返回 15 ✅
+```
+
+---
+
+## 二分答案模板（通用）
+
+看到"最小化 X，使得满足条件 Y"，套这个模板：
+
+```python
+l, r = 最小可能值, 最大可能值
+
+while l <= r:
+    mid = (l + r) // 2
+    if 满足条件(mid):
+        r = mid - 1    # 够用，试更小
+    else:
+        l = mid + 1    # 不够，要更大
+
+return l
+```
+
+### 同类题
+
+| 题目 | 二分什么 | 验证什么 |
+|------|---------|---------|
+| 1011 运包裹 D 天内 | 船的容量 | 贪心算需要几天 |
+| 875 吃香蕉 H 小时内 | 吃的速度 | 贪心算需要几小时 |
+| 410 分割数组最大值最小 | 子数组的最大和 | 贪心算需要分几段 |
+
+套路一样：**二分答案 + 贪心验证**。
+
+---
+
+## 两种二分模板对比
+
+| | 模板 A | 模板 B |
+|---|---|---|
+| 条件 | `while l <= r` | `while l < r` |
+| 缩右 | `r = mid - 1` | `r = mid` |
+| 返回 | `l` | `l` |
+
+两种都正确，选一种坚持用就行。
+
+---
+
+## 复杂度
+
+- **时间：** O(n × log(sum - max))，二分 log 次，每次贪心遍历 O(n)
+- **空间：** O(1)
+
 ## 81 Search In Rotated Sorted Array II
 ## 410 Split Array Largest Sum
 
@@ -1525,9 +1815,303 @@ root.left = self.deleteNode(root.left, cur.val)
 ## 427 Construct Quad Tree
 ## 337 House Robber III
 ## 1325 Delete Leaves With a Given Value
+## 671 Second Minimum Node In a Binary Tree
+**题意：** 特殊二叉树，每个节点要么有两个子节点要么没有，且 `root.val = min(left.val, right.val)`。求全树第二小的值。
+
+**关键观察：** root.val 一定是全局最小值，只需找第一个比 root.val 大的最小值。
+
+**剪枝：** 如果 `node.val > root.val`，不用继续往下（子节点只会更大）。
+
+### 写法一：返回值合并（纯函数）
+
+```python
+def findSecondMinimumValue(self, root):
+    def dfs(node):
+        if not node:
+            return -1
+        if node.val > root.val:
+            return node.val
+        left = dfs(node.left)
+        right = dfs(node.right)
+        if left == -1: return right
+        if right == -1: return left
+        return min(left, right)
+    return dfs(root)
+```
+
+### 写法二：全局变量 / nonlocal / 列表包装
+
+```python
+def findSecondMinimumValue(self, root):
+    res = [float('inf')]
+    def dfs(node):
+        if not node:
+            return
+        if node.val > root.val:
+            res[0] = min(res[0], node.val)
+            return
+        dfs(node.left)
+        dfs(node.right)
+    dfs(root)
+    return res[0] if res[0] != float('inf') else -1
+```
+
+**闭包小技巧：** Python 内层函数不能重新赋值外层变量，但可以修改可变对象内容：
+
+```python
+# ❌ UnboundLocalError
+ans = 0
+def f(): ans = 1
+
+# ✅ 三种绕过方式
+self.ans = 0          # self
+nonlocal ans           # nonlocal
+res = [0]; res[0] = 1 # 列表包装
+```
+## 1448 Count Good Nodes in Binary Tree
+# Count Good Nodes in Binary Tree
+
+## 题目定义
+
+从根节点到节点 `x` 的路径上，没有任何节点的值**大于** `x` 的值，则 `x` 是 good node。
+
+---
+
+## 遍历方式：前序 DFS
+
+判断当前节点是否 good，依赖的是**从根到当前节点路径上的最大值**，这个信息从上往下传递，所以必须前序——先处理当前节点，再递归子树。
+
+```
+前序：处理当前节点 → 递归左子树 → 递归右子树
+后序：递归左子树 → 递归右子树 → 处理当前节点（不适用，后序适合需要子树信息的题）
+```
+
+---
+
+## 关键细节：`>=` 而不是 `>`
+
+```python
+good = 1 if node.val >= max_so_far else 0   # ✅
+good = 1 if node.val > max_so_far else 0    # ❌ 漏掉相等情况
+```
+
+节点值和路径最大值**相等**也算 good node。
+
+例：路径最大值为 3，当前节点也是 3，满足"路径上没有比它更大的值" → good ✅
+
+---
+
+## DFS 结构分析
+
+```python
+def dfs(node, max_so_far):
+    # 1. 终止条件
+    if not node:
+        return 0
+
+    # 2. 前序：先处理当前节点
+    good = 1 if node.val >= max_so_far else 0
+
+    # 3. 更新状态，向下传递
+    max_so_far = max(max_so_far, node.val)
+
+    # 4. 递归左右子树，累加结果
+    good += dfs(node.left, max_so_far)
+    good += dfs(node.right, max_so_far)
+
+    return good
+```
+
+三个要素：
+
+| 要素 | 代码 | 说明 |
+|------|------|------|
+| 终止条件 | `if not node: return 0` | 空节点不贡献 good node |
+| 当前节点处理 | `node.val >= max_so_far` | 判断是否 good |
+| 状态向下传 | `max(max_so_far, node.val)` | 路径最大值传给子节点 |
+
+---
+
+## 完整代码
+
+```python
+class Solution:
+    def goodNodes(self, root: TreeNode) -> int:
+        def dfs(node, max_so_far):
+            if not node:
+                return 0
+
+            good = 1 if node.val >= max_so_far else 0
+            max_so_far = max(max_so_far, node.val)
+
+            good += dfs(node.left, max_so_far)
+            good += dfs(node.right, max_so_far)
+            return good
+
+        return dfs(root, float('-inf'))
+```
+
+初始调用传入 `float('-inf')`，保证根节点一定是 good node（任何值都 >= -inf）。
+
+---
+
+## 示例追踪
+
+```
+        [3]        max=-inf → 3 >= -inf ✅  good=1, max_so_far=3
+       /   \
+     [1]   [4]     
+  max=3    max=3
+  1<3 ❌   4>=3 ✅
+  good=0   good=1, max_so_far=4
+     \       /
+     [3]   [1]
+  max=3    max=4
+  3>=3 ✅  1<4 ❌
+  good=1   good=0
+
+结果：1 + 0 + 1 + 1 + 0 = 3
+```
+
+---
+
+## 复杂度
+
+| 类型 | 复杂度 |
+|------|--------|
+| 时间复杂度 | O(n)，每个节点访问一次 |
+| 空间复杂度 | O(h)，h 为树的高度，递归栈深度 |
+
 ## 1834 Single Threaded CPU
 ## 767 Reorganize String
 ## 1405 Longest Happy String
+## 题目
+
+给定三个整数 `a`, `b`, `c`，构造一个尽可能长的字符串，满足：
+
+- 只包含 `'a'`, `'b'`, `'c'`
+- 不包含 `"aaa"`, `"bbb"`, `"ccc"` 作为子串
+- `'a'` 最多出现 `a` 次，`'b'` 最多 `b` 次，`'c'` 最多 `c` 次
+
+---
+
+## 核心思路：贪心
+
+**每一步都优先消耗数量最多的字符。** 如果最多的那个已经连续出现了 2 次，就改放第二多的。
+
+为什么贪心是对的？优先消耗最多的 = 让三者数量尽量均衡 = 未来可选择的余地最大 = 字符串最长。
+
+---
+
+## 为什么不需要考虑第三多的字符？
+
+排序后 `counts[0] >= counts[1] >= counts[2]`：
+
+- 第一个能放 → 放第一个
+- 第一个连续 2 个被跳过，第二个能放 → 放第二个
+- 第二个 `cnt == 0` → 第三个必然也是 0 → 结束
+
+不存在"第二个不能放但第三个能放"的情况。
+
+---
+
+## 解法一：排序法
+
+```python
+class Solution:
+    def longestDiverseString(self, a: int, b: int, c: int) -> str:
+        counts = [[a, 'a'], [b, 'b'], [c, 'c']]
+        res = []
+
+        while True:
+            counts.sort(key=lambda x: -x[0])
+
+            if not (len(res) >= 2 and res[-1] == counts[0][1] and res[-2] == counts[0][1]):
+                if counts[0][0] == 0:
+                    break
+                res.append(counts[0][1])
+                counts[0][0] -= 1
+            else:
+                if counts[1][0] == 0:
+                    break
+                res.append(counts[1][1])
+                counts[1][0] -= 1
+
+        return ''.join(res)
+```
+
+逻辑就一个 `if-else`：能放第一个就放第一个，不能就放第二个，放不了就结束。
+
+**复杂度：** 排序 3 个元素是 O(1)，循环 a+b+c 轮，总计 **O(a+b+c)**。
+
+---
+
+## 解法二：最大堆
+
+用 `heappop` 代替排序，逻辑完全一样：
+
+```python
+import heapq
+
+class Solution:
+    def longestDiverseString(self, a: int, b: int, c: int) -> str:
+        heap = []
+        if a: heapq.heappush(heap, (-a, 'a'))
+        if b: heapq.heappush(heap, (-b, 'b'))
+        if c: heapq.heappush(heap, (-c, 'c'))
+
+        res = []
+        while heap:
+            cnt1, ch1 = heapq.heappop(heap)
+
+            if len(res) >= 2 and res[-1] == ch1 and res[-2] == ch1:
+                if not heap:
+                    break
+                cnt2, ch2 = heapq.heappop(heap)
+                res.append(ch2)
+                if cnt2 + 1 < 0:
+                    heapq.heappush(heap, (cnt2 + 1, ch2))
+                heapq.heappush(heap, (cnt1, ch1))
+            else:
+                res.append(ch1)
+                if cnt1 + 1 < 0:
+                    heapq.heappush(heap, (cnt1 + 1, ch1))
+
+        return ''.join(res)
+```
+
+> 注意：Python 只有最小堆，所以存负数。`cnt + 1` 就是"用掉一个"（如 -5 → -4）。
+
+---
+
+## 两种写法对比
+
+| | 排序法 | 最大堆 |
+|---|---|---|
+| 取最大 | `sort` 后取 `[0]` | `heappop` |
+| 取第二大 | 直接取 `[1]` | 再 `heappop` |
+| 每轮复杂度 | O(k log k) | O(log k) |
+| 本题 k=3 | 无实际差别 | 无实际差别 |
+| k 较大时 | 堆更优 | 堆更优 |
+
+---
+
+## 走一个例子：a=1, b=1, c=7
+
+| 步骤 | 排序后 | 末尾 | 动作 | 结果 |
+|------|--------|------|------|------|
+| 1 | c=7, a=1, b=1 | 空 | 放 c | `"c"` |
+| 2 | c=6, a=1, b=1 | c | 放 c | `"cc"` |
+| 3 | c=5, a=1, b=1 | cc | c 连续 2 个 → 放 a | `"cca"` |
+| 4 | c=5, b=1, a=0 | ca | 放 c | `"ccac"` |
+| 5 | c=4, b=1 | ac | 放 c | `"ccacc"` |
+| 6 | c=3, b=1 | cc | c 连续 2 个 → 放 b | `"ccaccb"` |
+| 7 | c=3 | cb | 放 c | `"ccaccbc"` |
+| 8 | c=2 | bc | 放 c | `"ccaccbcc"` |
+| 9 | c=1 | cc | 无其他可放 → 结束 | |
+
+最终结果：`"ccaccbcc"`，长度 8。
+
 ## 1094 Car Pooling
 ## 502 IPO
 ## 1863 Sum of All Subsets XOR Total
@@ -1677,7 +2261,283 @@ Almost the same as N Queens
 Diag1-> r-c+n or r-c
 Diag2-> r+c
 ## 140 Word Break II
+## 127 Word Ladder
+## 题目
+
+给定 `beginWord`、`endWord` 和 `wordList`，每次只能改一个字母，每步的词必须在 `wordList` 中，求从 `beginWord` 到 `endWord` 的最短转换序列的长度。不可能则返回 0。
+
+---
+
+## 核心思路：BFS 求最短路径
+
+把每个单词看作节点，只差一个字母的词之间连边，然后 BFS 找最短路径。
+
+### 怎么高效找"只差一个字母"的邻居？
+
+用通配符 pattern 建图：
+
+```
+"hit" → "*it", "h*t", "hi*"
+"hot" → "*ot", "h*t", "ho*"
+```
+
+`"hit"` 和 `"hot"` 都有 `"h*t"`，说明它们只差一个字母，是邻居。
+
+---
+
+## 代码
+
+```python
+from collections import defaultdict, deque
+
+class Solution:
+    def ladderLength(self, beginWord, endWord, wordList):
+        if endWord not in wordList:
+            return 0
+
+        graph = defaultdict(list)
+        wordList.append(beginWord)  # 别忘了加入 beginWord
+        for word in wordList:
+            for i in range(len(word)):
+                pattern = word[:i] + '*' + word[i+1:]
+                graph[pattern].append(word)
+
+        visited = {beginWord}
+        q = deque([beginWord])
+        step = 0
+
+        while q:
+            step += 1
+            for _ in range(len(q)):
+                word = q.popleft()
+                if word == endWord:
+                    return step
+                for i in range(len(word)):
+                    pattern = word[:i] + '*' + word[i+1:]
+                    for nei in graph[pattern]:
+                        if nei not in visited:
+                            visited.add(nei)
+                            q.append(nei)
+        return 0
+```
+
+---
+
+## 走一个例子
+
+```
+beginWord = "hit"
+endWord = "cog"
+wordList = ["hot","dot","dog","lot","log","cog"]
+```
+
+建图（部分 pattern）：
+
+```
+"h*t" → ["hit", "hot"]
+"*ot" → ["hot", "dot", "lot"]
+"d*g" → ["dog", "cog"]
+...
+```
+
+BFS 过程：
+
+| step | 队列 | 操作 |
+|------|------|------|
+| 1 | ["hit"] | hit 不是终点，找邻居 hot |
+| 2 | ["hot"] | hot 不是终点，找邻居 dot, lot |
+| 3 | ["dot","lot"] | dot 找到 dog，lot 找到 log |
+| 4 | ["dog","log"] | dog 找到 cog |
+| 5 | ["cog"] | cog 是终点！返回 5 |
+
+---
+
+## 易错点
+
+### 1. beginWord 必须加入建图
+
+`beginWord` 可能不在 `wordList` 里，不加入建图的话第一步就找不到邻居。
+
+### 2. 字符串切片语法
+
+```python
+# 错：少了 word，少了冒号
+graph[[:i] + '*' + [i+1]].append(word)
+
+# 对
+graph[word[:i] + '*' + word[i+1:]].append(word)
+```
+
+### 3. step 的含义
+
+题目要求返回的是**序列长度**（包含起始词），不是步数。`hit → hot → dot → dog → cog` 长度是 5。
+
+---
+
+## 复杂度
+
+- 时间：O(n × m²)，n 是单词数，m 是单词长度。每个词生成 m 个 pattern，每个 pattern 涉及 O(m) 的字符串操作
+- 空间：O(n × m)，图的存储
+
 ## 2707 Extra Characters in a String
+## 588 Design In-memory File System
+# 设计内存文件系统（Design In-Memory File System）
+
+## 题目
+
+实现文件系统，支持四个操作：
+
+- **`ls(path)`**：文件路径返回文件名，目录路径返回子内容（按字典序）
+- **`mkdir(path)`**：创建目录，中间目录不存在则一起创建
+- **`addContentToFile(filePath, content)`**：创建文件或追加内容
+- **`readContentFromFile(filePath)`**：读取文件内容
+
+---
+
+## 核心思路：Trie（字典树）
+
+目录结构本身就是一棵树，按路径段（`/` 分隔）作为每层的 key。
+
+所有操作的套路都一样：**先沿路径走到目标节点，再做事**。
+
+| 操作 | 走到节点 | 做什么 |
+|---|---|---|
+| ls | 只查找 | 返回内容 |
+| mkdir | 边走边创建 | 不需要额外操作 |
+| addContent | 边走边创建 | 标记为文件，追加内容 |
+| readContent | 只查找 | 返回内容 |
+
+所以只需要两个辅助函数：`search`（只查找）和 `create`（边走边创建）。
+
+---
+
+## 代码
+
+```python
+class TrieNode:
+    def __init__(self, name=""):
+        self.name = name
+        self.is_file = False
+        self.children = {}
+        self.content = ""
+
+class FileSystem:
+    def __init__(self):
+        self.root = TrieNode()
+
+    def search(self, path):
+        """只查找，找不到返回 None"""
+        node = self.root
+        if path == "/":
+            return node
+        for p in path.split("/")[1:]:
+            if p not in node.children:
+                return None
+            node = node.children[p]
+        return node
+
+    def create(self, path):
+        """边走边创建，一定能走到"""
+        node = self.root
+        if path == "/":
+            return node
+        for p in path.split("/")[1:]:
+            if p not in node.children:
+                node.children[p] = TrieNode(name=p)
+            node = node.children[p]
+        return node
+
+    def ls(self, path):
+        node = self.search(path)
+        if node is None:
+            return []
+        if node.is_file:
+            return [node.name]
+        return sorted(node.children.keys())
+
+    def mkdir(self, path):
+        self.create(path)
+
+    def addContentToFile(self, filePath, content):
+        node = self.create(filePath)
+        node.is_file = True
+        node.content += content
+
+    def readContentFromFile(self, filePath):
+        return self.search(filePath).content
+```
+
+---
+
+## 路径解析的关键
+
+`path.split("/")` 会在开头产生一个空字符串，用 `[1:]` 跳过：
+
+```python
+"/a/b/c".split("/")      # ['', 'a', 'b', 'c']
+"/a/b/c".split("/")[1:]   # ['a', 'b', 'c']
+```
+
+---
+
+## search 和 create 的唯一区别
+
+```python
+# search：节点不存在 → 返回 None
+if p not in node.children:
+    return None
+
+# create：节点不存在 → 创建新节点
+if p not in node.children:
+    node.children[p] = TrieNode(name=p)
+```
+
+---
+
+## 易错点
+
+### 1. search 是 FileSystem 的方法，不是 TrieNode 的
+
+```python
+# 错
+node = self.root.search(path)
+
+# 对
+node = self.search(path)
+```
+
+### 2. content 用字符串不用列表
+
+```python
+# 错：列表 += 字符串会出问题
+self.content = []
+
+# 对
+self.content = ""
+```
+
+### 3. TrieNode 构造函数要和调用方式匹配
+
+如果 `TrieNode(name=p)` 这样调用，`__init__` 必须接受 `name` 参数。
+
+---
+
+## 字典树的通用理解
+
+普通字典树按**字符**拆分，文件系统按**路径段**拆分，结构完全一样：
+
+```
+普通字典树：  "cat" → c → a → t
+文件系统：    "/a/b/c" → a → b → c
+```
+
+---
+
+## 复杂度
+
+- 时间：所有操作 O(m)，m 是路径深度。ls 额外 O(k log k) 排序，k 是子内容数量
+- 空间：O(所有路径段的总数)
+
 ## 463 Island Perimeter
 ## 953 Verifying An Alien Dictionary
 
@@ -1833,6 +2693,149 @@ n = 3, trust = [[1,3],[2,3]]
 - 空间：O(n)
 
 ## 752 Open The Lock
+> **Difficulty:** Medium  
+> 给定一个 4 位密码锁，初始状态 `"0000"`，每次可以将一个轮子转动一格（+1 或 -1，可绕回）。给定一组 deadends（死亡状态）和 target，求从 `"0000"` 到 `target` 的最少转动次数，不可能则返回 `-1`。
+
+---
+
+## 1. 思路：为什么是 BFS？
+
+### 把问题转化为图
+
+- **节点：** 每个 4 位字符串（`"0000"` ~ `"9999"`，共 10,000 个）
+- **边：** 两个状态之间只差一个轮子的一格，就连一条边
+- **每个节点有 8 个邻居：** 4 个轮子 × 2 个方向
+- **deadends：** 不可经过的节点
+- **目标：** 从 `"0000"` 到 `target` 的**最短路径**
+
+### 算法选择
+
+| 看到什么 | 想到什么 |
+|---------|---------|
+| 最少步数 + 每步代价相同 | **BFS（无权图最短路）** |
+| 带权最短路 | Dijkstra |
+| 枚举所有路径 | DFS/回溯（不保证最短） |
+
+> **口诀：最少步数 + 等代价 = BFS**
+
+---
+
+## 2. 邻居生成
+
+以 `"0295"` 为例：
+
+```
+轮子1: "1295" 或 "9295"
+轮子2: "0395" 或 "0195"
+轮子3: "0205" 或 "0285"
+轮子4: "0296" 或 "0294"
+```
+
+关键：`9 + 1 → 0`，`0 - 1 → 9`，用 `% 10` 处理绕回。
+
+```python
+def get_nei(state):
+    neighbors = []
+    for i in range(4):
+        digit = int(state[i])
+        for d in [1, -1]:
+            n_digit = (digit + d) % 10
+            n_state = state[:i] + str(n_digit) + state[i+1:]
+            neighbors.append(n_state)
+    return neighbors
+```
+
+---
+
+## 3. BFS 按层遍历
+
+### 为什么要按层？
+
+BFS 的步数是**按层算**的，同一层的所有节点距离起点步数相同。如果每 popleft 一次就 count+1，会把同一层的节点算成不同步数。
+
+### 按层模板
+
+```python
+while q:
+    count += 1
+    for _ in range(len(q)):   # 处理当前层所有节点
+        state = q.popleft()
+        for nei in get_nei(state):
+            # 处理邻居...
+```
+
+---
+
+## 4. 完整代码
+
+```python
+class Solution:
+    def openLock(self, deadends: List[str], target: str) -> int:
+        def get_nei(state):
+            neighbors = []
+            for i in range(4):
+                digit = int(state[i])
+                for d in [1, -1]:
+                    n_digit = (digit + d) % 10
+                    n_state = state[:i] + str(n_digit) + state[i+1:]
+                    neighbors.append(n_state)
+            return neighbors
+
+        deadends = set(deadends)        # 转 set，O(1) 查找
+        if '0000' in deadends:
+            return -1
+        if target == '0000':
+            return 0
+
+        q = deque(['0000'])
+        count = 0
+        visited = set()
+        visited.add('0000')
+
+        while q:
+            count += 1
+            for _ in range(len(q)):     # 按层遍历
+                state = q.popleft()
+                for nei in get_nei(state):
+                    if nei == target:
+                        return count
+                    if nei not in deadends and nei not in visited:
+                        q.append(nei)
+                        visited.add(nei) # 入队时就标记，避免重复
+        return -1
+```
+
+---
+
+## 5. 踩坑记录
+
+| 坑 | 说明 |
+|----|------|
+| 按节点计数 vs 按层计数 | 每次 popleft 就 count+1 是错的，要用 `for _ in range(len(q))` 按层处理 |
+| deadends 用 list | `in list` 是 O(n)，转成 `set` 才是 O(1) |
+| 入队时标记 vs 出队时标记 | 应该**入队时**就加入 visited，否则同一节点会被重复加入队列 |
+| 边界：起点在 deadends | 直接返回 -1 |
+| 边界：target 就是 "0000" | 直接返回 0 |
+
+---
+
+## 6. 复杂度
+
+| 复杂度 | 值 |
+|--------|------|
+| 时间 | O(10⁴ × 8) — 最多 10,000 个状态，每个 8 个邻居 |
+| 空间 | O(10⁴) — visited 集合 + 队列 |
+
+---
+
+## 7. 总结
+
+这道题的本质是**隐式图上的 BFS 最短路**。看起来像是密码锁的模拟题，但核心模式是：
+
+> **状态空间 + 等代价转移 + 求最少步数 → BFS**
+
+类似题目：127. Word Ladder、433. Minimum Genetic Mutation、1091. Shortest Path in Binary Matrix。
+
 ## 1462 Course Schedule IV
 
 ## 题意
@@ -2065,6 +3068,139 @@ class Solution:
 ## 1489 Find Critical and Pseudo Critical Edges in Minimum Spanning Tree
 ## 2392 Build a Matrix With Conditions
 ## 2709 Greatest Common Divisor Traversal
+## 1091 Shortest Path in Binary Matrix
+
+## 题目概述
+
+给定一个 `n x n` 的二进制矩阵 `grid`，找从左上角 `(0,0)` 到右下角 `(n-1,n-1)` 的**最短路径长度**。
+
+- `grid[i][j] == 0`：可以走
+- `grid[i][j] == 1`：障碍，不能走
+- 支持 8 方向移动（上下左右 + 四个对角）
+- 找不到路径返回 `-1`
+
+---
+
+## 为什么用 BFS 而不是 DFS
+
+| | DFS | BFS |
+|---|---|---|
+| 找到路径 | ✅ | ✅ |
+| 找到**最短**路径 | ❌ | ✅ |
+| 原理 | 一条路走到黑 | 像水波向四周扩散 |
+
+**BFS 的核心性质**：按层扩散，第一次到达终点时走的步数一定是最短的。
+
+```
+BFS 扩散示意：
+第1层：距离起点1步的所有格子
+第2层：距离起点2步的所有格子
+第3层：距离起点3步的所有格子
+...
+```
+
+即使有多条路径，BFS 会**同时探索所有路径**，谁先到终点谁就是最短的。
+
+---
+
+## 最终代码
+
+```python
+from collections import deque
+from typing import List
+
+class Solution:
+    def shortestPathBinaryMatrix(self, grid: List[List[int]]) -> int:
+        n = len(grid)
+
+        # 起点或终点是障碍物
+        if grid[0][0] == 1 or grid[n-1][n-1] == 1:
+            return -1
+        # 1x1 特殊情况
+        if n == 1:
+            return 1
+
+        directions = [(0,1),(1,0),(0,-1),(-1,0),(1,1),(-1,-1),(1,-1),(-1,1)]
+        q = deque([(0, 0, 1)])  # (行, 列, 当前路径格子数)
+        grid[0][0] = 1          # 标记起点已访问
+
+        while q:
+            x, y, l = q.popleft()
+            for dx, dy in directions:
+                nx, ny = x + dx, y + dy
+                if nx == n-1 and ny == n-1:
+                    return l + 1            # 到达终点
+                if 0 <= nx < n and 0 <= ny < n and grid[nx][ny] == 0:
+                    grid[nx][ny] = 1        # 标记已访问
+                    q.append((nx, ny, l + 1))
+
+        return -1
+```
+
+### 关键细节
+
+**`grid[nx][ny] = 1` 的双重含义：**
+
+| 情况 | grid 值 | 会走吗 |
+|------|---------|--------|
+| 原始障碍物（题目） | 1 | ❌ |
+| 已经访问过（我们设的） | 1 | ❌ |
+| 可以走且未访问 | 0 | ✅ |
+
+两者合并成同一个条件 `grid[nx][ny] == 0`，概念上是不同的。
+
+**初始化 `(0, 0, 1)` vs `(0, 0, 0)`：**
+
+| 初始化 | dist 含义 | 到达终点返回 |
+|--------|-----------|-------------|
+| `(0,0,1)` | 已踩格子数 | `dist + 1` |
+| `(0,0,0)` | 已走步数 | `dist + 2` |
+
+---
+
+## BFS vs Dijkstra vs A\*
+
+| | BFS | Dijkstra | A\* |
+|---|---|---|---|
+| Heuristic | ❌ | ❌ | ✅ |
+| 边的权重 | 都一样 | 可以不同 | 可以不同 |
+| 找最短路 | ✅ | ✅ | ✅ |
+| 效率 | 一般 | 一般 | 最高 |
+
+### A\* 核心公式
+
+```
+f(n) = g(n) + h(n)
+
+g(n) = 从起点到当前节点的实际代价（已走步数）
+h(n) = 从当前节点到终点的估计代价（启发函数）
+```
+
+每次优先探索 **f 值最小**的节点，即"走了很少步，又离终点很近"的格子。
+
+### 直觉对比
+
+- **BFS / Dijkstra**：只看过去（我已经走了多少步）
+- **A\***：看过去 + 看未来（我走了多少步 + 我估计还要走多少步）
+
+```
+终点 T 在右下角
+
+BFS:              A*:
+均匀向四周扩散      直接朝 T 方向冲
+浪费左上角节点      少探索很多无用节点
+```
+
+### 起点在中心时
+
+BFS 依然**正确**，但效率下降——会向所有方向均匀扩散，包括远离终点的方向。这正是 A\* 的优势场景：图很大、起点在中心时，heuristic 帮助减少无用探索。
+
+| 场景 | 推荐算法 |
+|---|---|
+| 图小 / 起点在角落 | BFS 够用 |
+| 图很大 / 起点在中心 | A\* 效率更高 |
+| 边有不同权重 | Dijkstra 或 A\* |
+
 ## 1137 N-th Tribonacci Number
 ## 题目描述
 
@@ -2469,7 +3605,203 @@ dp[0][3] = max(3-8, 2-(-5)) = max(-5, 7) = 7  面对[3,9,1,2]，拿2，优势7
 这道题其实 Alice 必赢，直接 `return True`。因为 Alice 可以预先算出奇数位总和和偶数位总和，然后选更大的那组全拿。但面试中通常要求写出 DP 解法。
 
 ## 1140 Stone Game II
+## 1092 Shortest Common Supersequence
+**题意：** 给定两个字符串 `str1` 和 `str2`，返回最短的字符串，使得 `str1` 和 `str2` 都是它的子序列。
+
+### 思路：LCS + 回溯构造
+
+1. 先求 LCS（最长公共子序列）的 DP 表
+2. 回溯 DP 表，将两个字符串合并（公共部分只写一次）
+
+**最短超序列长度 = len(str1) + len(str2) - len(LCS)**
+
+### LCS 的 DP
+
+`dp[i][j]` = `str1` 前 i 个字符与 `str2` 前 j 个字符的 LCS 长度。
+
+**转移方程：**
+
+- 相同：`dp[i][j] = dp[i-1][j-1] + 1`
+- 不同：`dp[i][j] = max(dp[i-1][j], dp[i][j-1])`
+
+口诀：**相同走对角线 +1，不同取上和左的较大值。**
+
+### 回溯：LCS vs 超序列
+
+关键区别：
+
+- **LCS 回溯：** 只收集公共字符，跳过不匹配的
+- **超序列回溯：** 每一步都往结果里写字符，不匹配的也不能丢
+
+### ⚠️ 常见错误
+
+```python
+# ❌ 错误：用 DP 值判断字符是否相等
+if dp[i][j-1] == dp[i-1][j]:  # 不等于字符相等！
+
+# ✅ 正确：直接比较字符
+if str1[i-1] == str2[j-1]:
+```
+
+`dp[i][j-1] == dp[i-1][j]` 可能只是巧合，不代表字符匹配。
+
+### 完整代码
+
+```python
+def shortestCommonSupersequence(str1: str, str2: str) -> str:
+    m, n = len(str1), len(str2)
+
+    # Step 1: LCS DP 表
+    dp = [[0] * (n + 1) for _ in range(m + 1)]
+    for i in range(1, m + 1):
+        for j in range(1, n + 1):
+            if str1[i - 1] == str2[j - 1]:
+                dp[i][j] = dp[i - 1][j - 1] + 1
+            else:
+                dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
+
+    # Step 2: 回溯构造超序列
+    res = []
+    i, j = m, n
+    while i > 0 and j > 0:
+        if str1[i - 1] == str2[j - 1]:
+            res.append(str1[i - 1])
+            i -= 1
+            j -= 1
+        elif dp[i - 1][j] >= dp[i][j - 1]:
+            res.append(str1[i - 1])
+            i -= 1
+        else:
+            res.append(str2[j - 1])
+            j -= 1
+
+    # 剩余字符（最多走其中一个循环）
+    while i > 0:
+        res.append(str1[i - 1])
+        i -= 1
+    while j > 0:
+        res.append(str2[j - 1])
+        j -= 1
+
+    return "".join(reversed(res))
+```
+
+- **时间：** O(m × n)
+- **空间：** O(m × n)
+
+### 回溯走例
+
+```
+str1 = "abac", str2 = "cab", LCS = "ab"
+
+(4,3): 'c' != 'b', dp上更大 → 加 'c', i=3
+(3,3): 'a' != 'b', dp上更大 → 加 'a', i=2
+(2,3): 'b' == 'b'           → 加 'b', i=1, j=2
+(1,2): 'a' == 'a'           → 加 'a', i=0, j=1
+(0,1): i=0, 剩余 str2      → 加 'c'
+
+收集：c, a, b, a, c → 反转 → "cabac" ✅
+```
+
 ## 860 Lemonade Change
+
+> **Difficulty:** Easy  
+> 柠檬水每杯 $5，顾客按顺序付 $5、$10 或 $20，你初始没有零钱。判断能否给每位顾客正确找零。
+
+---
+
+## 1. 思路：贪心模拟
+
+这题不需要复杂算法，就是**模拟找零过程**，关键决策只有一个：
+
+> 收到 $20 时，优先用 $10 + $5 找零，而不是 3 张 $5。
+
+**为什么？** 因为 $5 是"万能零钱"——$10 和 $20 的找零都需要它，而 $10 只能用于 $20 找零。所以要**尽量省着用 $5**。
+
+---
+
+## 2. 分类讨论
+
+| 收到 | 需要找零 | 操作 |
+|------|---------|------|
+| $5 | 无 | `five += 1` |
+| $10 | $5 | `five -= 1, ten += 1` |
+| $20 | $15 | 优先 `ten -= 1, five -= 1`；否则 `five -= 3` |
+
+任何时刻 `five < 0` 就说明找不开，返回 `False`。
+
+> **注意：** 不需要追踪 $20 的数量，因为 $20 永远不会被用来找零。
+
+---
+
+## 3. 代码
+
+```python
+class Solution:
+    def lemonadeChange(self, bills: List[int]) -> bool:
+        five = 0
+        ten = 0
+        for b in bills:
+            if b == 5:
+                five += 1
+            elif b == 10:
+                five, ten = five - 1, ten + 1
+            elif ten > 0:               # b == 20，优先用 10 + 5
+                five, ten = five - 1, ten - 1
+            else:                        # b == 20，只能用 3 张 5
+                five -= 3
+            if five < 0:
+                return False
+        return True
+```
+
+---
+
+## 4. 示例
+
+```
+bills = [5, 5, 5, 10, 20]
+
+$5  → five=1
+$5  → five=2
+$5  → five=3
+$10 → 找$5  → five=2, ten=1
+$20 → 找$15 → 用 $10+$5 → five=1, ten=0  ✅
+
+返回 True
+```
+
+```
+bills = [5, 5, 10, 10, 20]
+
+$5  → five=1
+$5  → five=2
+$10 → 找$5  → five=1, ten=1
+$10 → 找$5  → five=0, ten=2
+$20 → 找$15 → 用 $10+$5 → five=-1 ❌
+
+返回 False
+```
+
+---
+
+## 5. 复杂度
+
+| 复杂度 | 值 |
+|--------|------|
+| 时间 | O(n) — 遍历一次数组 |
+| 空间 | O(1) — 只用两个变量 |
+
+---
+
+## 6. 总结
+
+这是一道经典的**贪心模拟题**。核心就一句话：
+
+> **$5 比 $10 更有用，所以找零时优先消耗 $10，保留 $5。**
+
+类似的贪心找零/分配思路也出现在：455. Assign Cookies、135. Candy。
+
 ## 918 Maximum Sum Circular Subarray
 ## 978 Longest Turbulent Subarray
 # 最长湍流子数组 — 动规五部曲详解

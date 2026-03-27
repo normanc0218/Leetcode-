@@ -776,19 +776,19 @@ def isPalindrome(self, s: str) -> bool:
 
 ## 📝 相关题目
 
-### **680. Valid Palindrome II**
+**680. Valid Palindrome II**
 ```python
 # 允许删除一个字符后判断回文
 # 需要递归或双指针 + 辅助函数
 ```
 
-### **5. Longest Palindromic Substring**
+**5. Longest Palindromic Substring**
 ```python
 # 找最长回文子串
 # 中心扩展法或动态规划
 ```
 
-### **9. Palindrome Number**
+**9. Palindrome Number**
 ```python
 # 判断数字是否回文
 # 可以转字符串用双指针
@@ -1916,6 +1916,68 @@ class Solution:
 - 时间：O(log(min(m, n)))，只在短数组上二分
 - 空间：O(1)
 ## 206 Reverse Linked List
+## 题目
+
+给定单链表的头节点 `head`，将链表反转，返回新的头节点。
+
+---
+
+## 核心思路
+
+遍历链表，逐个把每个节点的 `next` 指针从"指向后面"改成"指向前面"。需要三个指针配合：
+
+- `prev`：当前节点反转后应该指向谁（初始为 `None`）
+- `head`：当前正在处理的节点
+- `nxt`：提前保存下一个节点（因为改了 `next` 就找不到了）
+
+---
+
+## 代码
+
+```python
+class Solution:
+    def reverseList(self, head: Optional[ListNode]) -> Optional[ListNode]:
+        prev = None
+        while head:
+            nxt = head.next    # 1. 先存下一个
+            head.next = prev   # 2. 反转指向
+            prev = head        # 3. prev 前进
+            head = nxt         # 4. head 前进
+        return prev
+```
+
+---
+
+## 走一个例子：1 → 2 → 3 → None
+
+| 步骤 | prev | head | nxt | 操作后链表状态 |
+|------|------|------|-----|---------------|
+| 初始 | None | 1 | - | 1 → 2 → 3 → None |
+| 1 | None | 1 | 2 | None ← 1 &emsp; 2 → 3 → None |
+| 2 | 1 | 2 | 3 | None ← 1 ← 2 &emsp; 3 → None |
+| 3 | 2 | 3 | None | None ← 1 ← 2 ← 3 |
+| 结束 | 3 | None | - | 返回 prev = 3 |
+
+---
+
+## 每一步在干什么
+
+循环体就四行，每行一个动作：
+
+1. **`nxt = head.next`** — 保存后继，否则下一步断开就丢了
+2. **`head.next = prev`** — 核心操作：把箭头反过来
+3. **`prev = head`** — prev 往前走一步
+4. **`head = nxt`** — head 往前走一步
+
+四步的顺序不能变。
+
+---
+
+## 复杂度
+
+- 时间：O(n)，每个节点访问一次
+- 空间：O(1)，只用了三个指针
+
 ## 21 Merge Two Sorted Lists
 ## 143 Reorder List
 ## 题目核心
@@ -4174,6 +4236,183 @@ if dfs(i, j, 0):
 **提示**: 回溯的关键在于"撤销"，寻路问题几乎都需要回溯！💪
 ## 131 Palindrome Partitioning
 ## 17 Letter Combinations of Phone Number
+# LeetCode 17 - Letter Combinations of a Phone Number
+
+---
+
+## 题意
+
+给定一个数字字符串 `digits`（2-9），返回所有可能的字母组合（手机九宫格）。
+
+---
+
+## 思路：回溯
+
+对每个数字，遍历它对应的字母，逐层递归。
+
+---
+
+## 写法一：字符串拼接（推荐，不需要 pop）
+
+```python
+def letterCombinations(self, digits):
+    if not digits:
+        return []
+    
+    phone = {
+        '2': 'abc', '3': 'def', '4': 'ghi',
+        '5': 'jkl', '6': 'mno', '7': 'pqrs',
+        '8': 'tuv', '9': 'wxyz'
+    }
+    res = []
+    
+    def dfs(i, path):
+        if i == len(digits):
+            res.append(path)
+            return
+        for ch in phone[digits[i]]:
+            dfs(i + 1, path + ch)
+    
+    dfs(0, "")
+    return res
+```
+
+**为什么不需要 pop：** 字符串是不可变对象，`path + ch` 创建新字符串传下去，原来的 `path` 没变，天然回溯。
+
+---
+
+## 写法二：列表 + pop（经典回溯模板）
+
+```python
+def letterCombinations(self, digits):
+    if not digits:
+        return []
+    
+    phone = {
+        '2': ['a','b','c'], '3': ['d','e','f'], '4': ['g','h','i'],
+        '5': ['j','k','l'], '6': ['m','n','o'], '7': ['p','q','r','s'],
+        '8': ['t','u','v'], '9': ['w','x','y','z']
+    }
+    res = []
+    
+    def dfs(i, path):
+        if i == len(digits):
+            res.append(''.join(path))
+            return
+        for ch in phone[digits[i]]:
+            path.append(ch)
+            dfs(i + 1, path)
+            path.pop()
+    
+    dfs(0, [])
+    return res
+```
+
+**为什么需要 pop：** 列表是可变对象，`append` 修改了原对象，必须手动 `pop` 恢复。
+
+---
+
+## 为什么一个要 pop 一个不用
+
+```
+可变对象（列表）    → append 修改原对象 → 要手动 pop 恢复
+不可变对象（字符串） → path + ch 创建新对象 → 原 path 没变，自动回溯
+```
+
+走个例子，`digits = "23"`：
+
+### 字符串版本
+
+```
+dfs(0, "")
+  dfs(1, "a")         ← "" + "a" 创建新字符串
+    dfs(2, "ad") → 记录
+    dfs(2, "ae") → 记录
+  # 回来后 path 还是 ""，没变过
+  dfs(1, "b")         ← "" + "b" 创建新字符串
+```
+
+### 列表版本
+
+```
+dfs(0, [])
+  path.append('a')    ← path 变成 ['a']
+  dfs(1, ['a'])
+    path.append('d')  ← path 变成 ['a','d']
+    dfs(2, ['a','d']) → 记录
+    path.pop()        ← path 恢复成 ['a']
+    path.append('e')
+    dfs(2, ['a','e']) → 记录
+    path.pop()
+  path.pop()          ← path 恢复成 []
+  path.append('b')
+  dfs(1, ['b'])
+```
+
+---
+
+## 常见 Bug
+
+### 1. 缺少 return → IndexError
+
+```python
+# ❌ 没有 return，i == len(digits) 时继续执行 digits[i]，越界
+if i == len(digits):
+    res.append(''.join(path))
+
+# ✅ 加 return
+if i == len(digits):
+    res.append(''.join(path))
+    return
+```
+
+### 2. key 用整数而非字符串
+
+```python
+# ❌ digits[i] 是字符 '2'，key 是整数 2 → KeyError
+phone = {2: ['a','b','c']}
+
+# ✅ key 用字符串
+phone = {'2': ['a','b','c']}
+```
+
+### 3. path 未初始化
+
+```python
+# ❌ path 未定义
+dfs(0, path)
+
+# ✅ 传空列表或空字符串
+dfs(0, [])
+dfs(0, "")
+```
+
+### 4. 没处理空输入
+
+```python
+# ❌ digits="" 时会把空 path 加入结果
+# ✅ 开头加判断
+if not digits:
+    return []
+```
+
+### 5. 列表版本存结果要 join
+
+```python
+# ❌ 存的是列表 ['a', 'd']
+res.append(path.copy())
+
+# ✅ 转成字符串 "ad"
+res.append(''.join(path))
+```
+
+---
+
+## 复杂度
+
+- **时间：** O(4ⁿ)，n 为 digits 长度，最多每个数字 4 个字母（7 和 9）
+- **空间：** O(n)，递归深度
+
 ## 51 N Queens
 ## 核心洞察
 
@@ -4528,6 +4767,38 @@ class Solution:
 ---
 ## 130 Surrounded Regions
 ## 994 Rotting Oranges
+**题意：** 网格中有新鲜橘子(1)和腐烂橘子(2)，每分钟腐烂橘子同时感染四邻的新鲜橘子。求全部腐烂的最少时间，不可能则返回 -1。
+
+**关键：** 用 BFS 不用 DFS，因为腐烂是**同时扩散**的。
+
+```python
+def orangesRotting(self, grid):
+    rows, cols = len(grid), len(grid[0])
+    queue = deque()
+    fresh = 0
+    for i in range(rows):
+        for j in range(cols):
+            if grid[i][j] == 2:
+                queue.append((i, j))
+            elif grid[i][j] == 1:
+                fresh += 1
+    if fresh == 0:
+        return 0
+    minutes = 0
+    directions = [(0,1), (1,0), (0,-1), (-1,0)]
+    while queue:
+        minutes += 1
+        for _ in range(len(queue)):
+            r, c = queue.popleft()
+            for dr, dc in directions:
+                nr, nc = r + dr, c + dc
+                if 0 <= nr < rows and 0 <= nc < cols and grid[nr][nc] == 1:
+                    grid[nr][nc] = 2
+                    fresh -= 1
+                    queue.append((nr, nc))
+    return minutes - 1 if fresh == 0 else -1
+```
+
 ## 207 Course Schedule
 ## 题目核心
 
@@ -6511,6 +6782,55 @@ i=3: [3,4] 起点 3 ≥ 前一个终点 3 → 不重叠
 
 ## 48 Rotate Image
 ## 54 Spiral Matrix
+LeetCode 59 - Spiral Matrix II
+
+**题意：** 给定 n，生成 1 到 n² 的螺旋矩阵。
+
+### 写法一：四边界法（推荐）
+
+```python
+def generateMatrix(self, n):
+    res = [[0] * n for _ in range(n)]
+    top, bottom, left, right = 0, n - 1, 0, n - 1
+    count = 1
+    while count <= n * n:
+        for j in range(left, right + 1):
+            res[top][j] = count; count += 1
+        top += 1
+        for i in range(top, bottom + 1):
+            res[i][right] = count; count += 1
+        right -= 1
+        for j in range(right, left - 1, -1):
+            res[bottom][j] = count; count += 1
+        bottom -= 1
+        for i in range(bottom, top - 1, -1):
+            res[i][left] = count; count += 1
+        left += 1
+    return res
+```
+
+### 写法二：offset 法（左闭右开）
+
+```python
+def generateMatrix(self, n):
+    res = [[0] * n for _ in range(n)]
+    startx, starty = 0, 0
+    count = 1
+    for offset in range(1, n // 2 + 1):
+        for j in range(starty, n - offset):
+            res[startx][j] = count; count += 1
+        for i in range(startx, n - offset):
+            res[i][n - offset] = count; count += 1
+        for j in range(n - offset, starty, -1):
+            res[n - offset][j] = count; count += 1
+        for i in range(n - offset, startx, -1):
+            res[i][starty] = count; count += 1
+        startx += 1; starty += 1
+    if n % 2 == 1:
+        res[n // 2][n // 2] = count
+    return res
+```
+
 ## 73 Set Matrix Zeroes
 
 ## 思路演进

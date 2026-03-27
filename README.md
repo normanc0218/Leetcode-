@@ -546,7 +546,7 @@ def backtrack(路径, 选择列表, ...):
 - [560 Subarray Sum Equals K](extraMaterial.md#560-subarray-sum-equals-k)
 - [41 First Missing Positive](extraMaterial.md#41-first-missing-positive)
 - [43. Multiply String](extraMaterial.md#43-multiply-string)
-
+- [1131. Maximum of Absolute Value Expression]
 ## 2. Two Pointers
 - [344 Reverse String](extraMaterial.md#344-reverse-string)
 - [680 Valid Palindrome II](extraMaterial.md#680-valid-palindrome-ii)
@@ -595,7 +595,8 @@ def backtrack(路径, 选择列表, ...):
 - [427 Construct Quad Tree](extraMaterial.md#427-construct-quad-tree)
 - [337 House Robber III](extraMaterial.md#337-house-robber-iii)
 - [1325 Delete Leaves With a Given Value](extraMaterial.md#1325-delete-leaves-with-a-given-value)
-
+- [671 Second Minimum Node In a Binary Tree](extraMaterial.md#671-second-minimum-node-in-a-binary-tree)
+- [1448 Count Good Node in Binary Tree](extraMaterial.md#1448-count-good-nodes-in-binary-tree)
 ## 8. Heap / Priority Queue
 - [1834 Single Threaded CPU](extraMaterial.md#1834-single-threaded-cpu)
 - [767 Reorganize String](extraMaterial.md#767-reorganize-string)
@@ -611,10 +612,10 @@ def backtrack(路径, 选择列表, ...):
 - [698 Partition to K Equal Sum Subsets](extraMaterial.md#698-partition-to-k-equal-sum-subsets)
 - [52 N Queens II](extraMaterial.md#52-n-queens-ii)
 - [140 Word Break II](extraMaterial.md#140-word-break-ii)
-
+- [127 word Ladder](extraMaterial.md#127-word-ladder)
 ## 10. Tries
 - [2707 Extra Characters in a String](extraMaterial.md#2707-extra-characters-in-a-string)
-
+- [588 Design In-memory File System](extraMaterial.md#588-design-in-memory-file-system)
 ## 11. Graphs
 - [463 Island Perimeter](extraMaterial.md#463-island-perimeter)
 - [953 Verifying An Alien Dictionary](extraMaterial.md#953-verifying-an-alien-dictionary)
@@ -630,7 +631,7 @@ def backtrack(路径, 选择列表, ...):
 - [1489 Find Critical and Pseudo Critical Edges in Minimum Spanning Tree](extraMaterial.md#1489-find-critical-and-pseudo-critical-edges-in-minimum-spanning-tree)
 - [2392 Build a Matrix With Conditions](extraMaterial.md#2392-build-a-matrix-with-conditions)
 - [2709 Greatest Common Divisor Traversal](extraMaterial.md#2709-greatest-common-divisor-traversal)
-
+- [1091 Shortest Path in Binary Matrix](extraMaterial.md#1091-shortest-path-in-binary-matrix)
 ## 13. 1-D Dynamic Programming
 - [1137 N-th Tribonacci Number](extraMaterial.md#1137-n-th-tribonacci-number)
 - [377 Combination Sum IV](extraMaterial.md#377-combination-sum-iv)
@@ -644,7 +645,7 @@ def backtrack(路径, 选择列表, ...):
 - [1049 Last Stone Weight II](extraMaterial.md#1049-last-stone-weight-ii)
 - [877 Stone Game](extraMaterial.md#877-stone-game)
 - [1140 Stone Game II](extraMaterial.md#1140-stone-game-ii)
-
+- [1092 Shortest Common Supersequence](extraMaterial.md#1092-shortest-common-supersequence)
 ## 15. Greedy
 - [860 Lemonade Change](extraMaterial.md#860-lemonade-change)
 - [918 Maximum Sum Circular Subarray](extraMaterial.md#918-maximum-sum-circular-subarray)
